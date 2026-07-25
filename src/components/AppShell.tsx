@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { meQuery } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
-const NAV: { to: string; label: string; icon: typeof Camera; adminOnly?: boolean }[] = [
+type NavTo = "/scan" | "/find" | "/my-items" | "/dashboard";
+const NAV: { to: NavTo; label: string; icon: typeof Camera; adminOnly?: boolean }[] = [
   { to: "/scan", label: "Scan", icon: Camera },
   { to: "/find", label: "Find", icon: Search },
   { to: "/my-items", label: "My items", icon: ClipboardList },
