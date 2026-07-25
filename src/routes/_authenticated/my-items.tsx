@@ -1,14 +1,27 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2, PackageOpen } from "lucide-react";
+import { AlertTriangle, CalendarPlus, CheckCircle2, PackageOpen } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { ReturnDialog } from "@/components/ReturnDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { returnComponent } from "@/lib/inventory.functions";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { extendBorrow, returnComponent } from "@/lib/inventory.functions";
 import { borrowLogQuery, daysUntil, formatDate } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/my-items")({
@@ -18,17 +31,83 @@ export const Route = createFileRoute("/_authenticated/my-items")({
       {
         name: "description",
         content:
-          "See every component checked out in your name, when it is due back, and mark it returned in one tap.",
+          "See every component checked out in your name, extend a due date, and mark it returned — flagging damage if needed.",
       },
       { property: "og:title", content: "My borrowed items | SAC Inventory" },
       {
         property: "og:description",
-        content: "Your open checkouts and return reminders for the SAC robotics room.",
+        content: "Your open checkouts, return reminders and extensions for the SAC robotics room.",
       },
     ],
   }),
   component: MyItemsPage,
 });
+
+function ExtendDialog({
+  recordId,
+  itemLabel,
+  dueAt,
+  extendedCount,
+}: {
+  recordId: string;
+  itemLabel: string;
+  dueAt: string;
+  extendedCount: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const [days, setDays] = useState(7);
+  const queryClient = useQueryClient();
+  const doExtend = useServerFn(extendBorrow);
+
+  const mutation = useMutation({
+    mutationFn: () => doExtend({ data: { recordId, days } }),
+    onSuccess: (res) => {
+      toast.success(`Extended — now due ${formatDate(res.dueAt)}`);
+      queryClient.invalidateQueries({ queryKey: ["borrows"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      setOpen(false);
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not extend"),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="flex-1">
+          <CalendarPlus className="size-4" />
+          Need it longer
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Extend {itemLabel}</DialogTitle>
+          <DialogDescription>
+            Currently due {formatDate(dueAt)}. You've extended this {extendedCount} of 3 times.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-1.5">
+          <Label htmlFor="extend-days">Extra days</Label>
+          <Input
+            id="extend-days"
+            type="number"
+            min={1}
+            max={30}
+            value={days}
+            onChange={(e) => setDays(Math.min(30, Math.max(1, +e.target.value || 1)))}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+            Extend due date
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function MyItemsPage() {
   const log = useQuery(borrowLogQuery("mine"));
@@ -36,9 +115,14 @@ function MyItemsPage() {
   const doReturn = useServerFn(returnComponent);
 
   const mutation = useMutation({
-    mutationFn: (recordId: string) => doReturn({ data: { recordId } }),
-    onSuccess: () => {
-      toast.success("Returned — thanks for putting it back.");
+    mutationFn: (input: { recordId: string; damaged: boolean; damageNote?: string }) =>
+      doReturn({ data: input }),
+    onSuccess: (_res, input) => {
+      toast.success(
+        input.damaged
+          ? "Returned and flagged as damaged — admins have been notified."
+          : "Returned — thanks for putting it back.",
+      );
       queryClient.invalidateQueries({ queryKey: ["borrows"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
@@ -61,11 +145,12 @@ function MyItemsPage() {
         <div className="space-y-6">
           {overdue.length > 0 ? (
             <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-4">
-              <p className="font-semibold text-destructive">
+              <p className="flex items-center gap-2 font-semibold text-destructive">
+                <AlertTriangle className="size-4" />
                 {overdue.length} item{overdue.length > 1 ? "s" : ""} overdue
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Please return them to the SAC room or ask an admin to extend the due date.
+                Return them to the SAC room, or tap “Need it longer” to push the due date.
               </p>
             </div>
           ) : null}
@@ -88,19 +173,20 @@ function MyItemsPage() {
               <ul className="space-y-2">
                 {open.map((r) => {
                   const left = daysUntil(r.due_at);
+                  const label = `${r.quantity} × ${r.component_name}`;
                   return (
                     <li key={r.id} className="panel p-4">
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
-                          <p className="font-medium">
-                            {r.quantity} × {r.component_name}
-                          </p>
+                          <p className="font-medium">{label}</p>
                           <p className="mono-tag mt-1 text-muted-foreground">
                             {r.rack_code ?? "—"}
                             {r.bin_label ? ` · bin ${r.bin_label}` : ""}
                           </p>
                         </div>
-                        <Badge variant={left < 0 ? "destructive" : left <= 1 ? "outline" : "secondary"}>
+                        <Badge
+                          variant={left < 0 ? "destructive" : left <= 1 ? "outline" : "secondary"}
+                        >
                           {left < 0
                             ? `${Math.abs(left)}d overdue`
                             : left === 0
@@ -110,20 +196,29 @@ function MyItemsPage() {
                       </div>
                       <p className="mt-2 text-xs text-muted-foreground">
                         Taken {formatDate(r.borrowed_at)} · due {formatDate(r.due_at)}
+                        {r.extended_count > 0 ? ` · extended ${r.extended_count}×` : ""}
                       </p>
-                      <Button
-                        className="mt-3 w-full"
-                        variant="secondary"
-                        onClick={() => mutation.mutate(r.id)}
-                        disabled={mutation.isPending}
-                      >
-                        {mutation.isPending ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="size-4" />
-                        )}
-                        Mark returned
-                      </Button>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <ExtendDialog
+                          recordId={r.id}
+                          itemLabel={label}
+                          dueAt={r.due_at}
+                          extendedCount={r.extended_count}
+                        />
+                        <ReturnDialog
+                          itemLabel={label}
+                          pending={mutation.isPending}
+                          onConfirm={({ damaged, damageNote }) =>
+                            mutation.mutateAsync({ recordId: r.id, damaged, damageNote })
+                          }
+                          trigger={
+                            <Button variant="secondary" className="flex-1">
+                              <CheckCircle2 className="size-4" />
+                              Return
+                            </Button>
+                          }
+                        />
+                      </div>
                     </li>
                   );
                 })}
@@ -138,13 +233,19 @@ function MyItemsPage() {
               </h2>
               <ul className="space-y-2">
                 {past.map((r) => (
-                  <li key={r.id} className="panel flex items-center gap-3 p-3 text-sm">
-                    <span className="min-w-0 flex-1 truncate">
-                      {r.quantity} × {r.component_name}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDate(r.returned_at!)}
-                    </span>
+                  <li key={r.id} className="panel p-3 text-sm">
+                    <div className="flex items-center gap-3">
+                      <span className="min-w-0 flex-1 truncate">
+                        {r.quantity} × {r.component_name}
+                      </span>
+                      {r.damage_reported ? <Badge variant="destructive">Damaged</Badge> : null}
+                      <span className="text-xs text-muted-foreground">
+                        {formatDate(r.returned_at!)}
+                      </span>
+                    </div>
+                    {r.damage_note ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{r.damage_note}</p>
+                    ) : null}
                   </li>
                 ))}
               </ul>

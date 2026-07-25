@@ -139,8 +139,12 @@ function Landing() {
       </main>
 
       <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-        SAC Robotics Club — component inventory
+        SAC Robotics Club — component inventory ·{" "}
+        <Link to="/admin" className="underline hover:text-foreground">
+          Room admin panel
+        </Link>
       </footer>
+
     </div>
   );
 }

@@ -3,9 +3,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Boxes, Camera, ClipboardList, LayoutDashboard, LogOut, Search } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { NotificationBell } from "@/components/NotificationBell";
 import { supabase } from "@/integrations/supabase/client";
 import { meQuery } from "@/lib/queries";
 import { cn } from "@/lib/utils";
+
 
 type NavTo = "/scan" | "/find" | "/my-items" | "/dashboard";
 const NAV: { to: NavTo; label: string; icon: typeof Camera; adminOnly?: boolean }[] = [
@@ -70,7 +72,9 @@ export function AppShell({
               {displayName}
               {me.data?.isAdmin ? <span className="block text-primary">Admin</span> : null}
             </span>
+            <NotificationBell />
             <button
+
               onClick={signOut}
               aria-label="Sign out"
               className="rounded-lg border border-border p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
