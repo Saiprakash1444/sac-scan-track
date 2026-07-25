@@ -200,6 +200,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      borrow_component: {
+        Args: {
+          _component_id: string
+          _days?: number
+          _note?: string
+          _quantity: number
+        }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -207,6 +216,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      return_component: { Args: { _record_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "member"
