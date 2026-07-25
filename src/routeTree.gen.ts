@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedScanRouteImport } from './routes/_authenticated/scan'
+import { Route as AuthenticatedFindRouteImport } from './routes/_authenticated/find'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -33,15 +34,22 @@ const AuthenticatedScanRoute = AuthenticatedScanRouteImport.update({
   path: '/scan',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedFindRoute = AuthenticatedFindRouteImport.update({
+  id: '/find',
+  path: '/find',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/find': typeof AuthenticatedFindRoute
   '/scan': typeof AuthenticatedScanRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/find': typeof AuthenticatedFindRoute
   '/scan': typeof AuthenticatedScanRoute
 }
 export interface FileRoutesById {
@@ -49,14 +57,21 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/find': typeof AuthenticatedFindRoute
   '/_authenticated/scan': typeof AuthenticatedScanRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/scan'
+  fullPaths: '/' | '/auth' | '/find' | '/scan'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/scan'
-  id: '__root__' | '/' | '/_authenticated' | '/auth' | '/_authenticated/scan'
+  to: '/' | '/auth' | '/find' | '/scan'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/find'
+    | '/_authenticated/scan'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -95,14 +110,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedScanRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/find': {
+      id: '/_authenticated/find'
+      path: '/find'
+      fullPath: '/find'
+      preLoaderRoute: typeof AuthenticatedFindRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedFindRoute: typeof AuthenticatedFindRoute
   AuthenticatedScanRoute: typeof AuthenticatedScanRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedFindRoute: AuthenticatedFindRoute,
   AuthenticatedScanRoute: AuthenticatedScanRoute,
 }
 
