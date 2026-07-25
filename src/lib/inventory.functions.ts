@@ -128,7 +128,7 @@ export const borrowComponent = createServerFn({ method: "POST" })
       _component_id: data.componentId,
       _quantity: data.quantity,
       _days: data.days,
-      _note: data.note ?? null,
+      _note: data.note ?? undefined,
     });
     if (error) throw new Error(error.message);
     return { recordId };
