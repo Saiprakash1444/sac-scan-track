@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedScanRouteImport } from './routes/_authenticated/scan'
 import { Route as AuthenticatedMyItemsRouteImport } from './routes/_authenticated/my-items'
 import { Route as AuthenticatedFindRouteImport } from './routes/_authenticated/find'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -45,10 +46,16 @@ const AuthenticatedFindRoute = AuthenticatedFindRouteImport.update({
   path: '/find',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/find': typeof AuthenticatedFindRoute
   '/my-items': typeof AuthenticatedMyItemsRoute
   '/scan': typeof AuthenticatedScanRoute
@@ -56,6 +63,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/find': typeof AuthenticatedFindRoute
   '/my-items': typeof AuthenticatedMyItemsRoute
   '/scan': typeof AuthenticatedScanRoute
@@ -65,20 +73,22 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/find': typeof AuthenticatedFindRoute
   '/_authenticated/my-items': typeof AuthenticatedMyItemsRoute
   '/_authenticated/scan': typeof AuthenticatedScanRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/find' | '/my-items' | '/scan'
+  fullPaths: '/' | '/auth' | '/dashboard' | '/find' | '/my-items' | '/scan'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/find' | '/my-items' | '/scan'
+  to: '/' | '/auth' | '/dashboard' | '/find' | '/my-items' | '/scan'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/dashboard'
     | '/_authenticated/find'
     | '/_authenticated/my-items'
     | '/_authenticated/scan'
@@ -134,16 +144,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFindRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedFindRoute: typeof AuthenticatedFindRoute
   AuthenticatedMyItemsRoute: typeof AuthenticatedMyItemsRoute
   AuthenticatedScanRoute: typeof AuthenticatedScanRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedFindRoute: AuthenticatedFindRoute,
   AuthenticatedMyItemsRoute: AuthenticatedMyItemsRoute,
   AuthenticatedScanRoute: AuthenticatedScanRoute,
