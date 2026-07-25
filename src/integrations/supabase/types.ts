@@ -19,10 +19,15 @@ export type Database = {
           borrowed_at: string
           component_id: string
           created_at: string
+          damage_note: string | null
+          damage_reported: boolean
           due_at: string
+          extended_count: number
           id: string
           note: string | null
           quantity: number
+          reminded_overdue_at: string | null
+          reminded_soon_at: string | null
           returned_at: string | null
           user_id: string
         }
@@ -30,10 +35,15 @@ export type Database = {
           borrowed_at?: string
           component_id: string
           created_at?: string
+          damage_note?: string | null
+          damage_reported?: boolean
           due_at?: string
+          extended_count?: number
           id?: string
           note?: string | null
           quantity?: number
+          reminded_overdue_at?: string | null
+          reminded_soon_at?: string | null
           returned_at?: string | null
           user_id: string
         }
@@ -41,10 +51,15 @@ export type Database = {
           borrowed_at?: string
           component_id?: string
           created_at?: string
+          damage_note?: string | null
+          damage_reported?: boolean
           due_at?: string
+          extended_count?: number
           id?: string
           note?: string | null
           quantity?: number
+          reminded_overdue_at?: string | null
+          reminded_soon_at?: string | null
           returned_at?: string | null
           user_id?: string
         }
@@ -113,6 +128,47 @@ export type Database = {
             columns: ["rack_id"]
             isOneToOne: false
             referencedRelation: "racks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          borrow_record_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          borrow_record_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          borrow_record_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          read_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_borrow_record_id_fkey"
+            columns: ["borrow_record_id"]
+            isOneToOne: false
+            referencedRelation: "borrow_records"
             referencedColumns: ["id"]
           },
         ]
@@ -209,6 +265,11 @@ export type Database = {
         }
         Returns: string
       }
+      extend_borrow: {
+        Args: { _days?: number; _record_id: string }
+        Returns: string
+      }
+      generate_return_reminders: { Args: never; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -216,7 +277,10 @@ export type Database = {
         }
         Returns: boolean
       }
-      return_component: { Args: { _record_id: string }; Returns: undefined }
+      return_component: {
+        Args: { _damage_note?: string; _damaged?: boolean; _record_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "member"
