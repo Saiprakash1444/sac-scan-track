@@ -7,12 +7,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { meQuery } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
-const NAV = [
+const NAV: { to: string; label: string; icon: typeof Camera; adminOnly?: boolean }[] = [
   { to: "/scan", label: "Scan", icon: Camera },
   { to: "/find", label: "Find", icon: Search },
   { to: "/my-items", label: "My items", icon: ClipboardList },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, adminOnly: true },
-] as const;
+];
 
 export function AppShell({
   title,
