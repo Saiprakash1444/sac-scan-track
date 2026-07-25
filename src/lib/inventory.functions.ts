@@ -33,11 +33,24 @@ export type BorrowRow = {
   due_at: string;
   returned_at: string | null;
   note: string | null;
+  extended_count: number;
+  damage_reported: boolean;
+  damage_note: string | null;
   component_name: string;
   bin_label: string | null;
   rack_code: string | null;
   member_name: string;
 };
+
+export type NotificationRow = {
+  id: string;
+  kind: string;
+  title: string;
+  body: string | null;
+  created_at: string;
+  read_at: string | null;
+};
+
 
 const uuid = z.string().uuid();
 
