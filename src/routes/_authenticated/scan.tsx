@@ -28,7 +28,7 @@ export const Route = createFileRoute("/_authenticated/scan")({
       },
     ],
   }),
-  component: ScanPage;
+  component: ScanPage,
 });
 
 type BarcodeDetectorLike = {
