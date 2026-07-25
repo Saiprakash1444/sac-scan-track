@@ -14,16 +14,202 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      borrow_records: {
+        Row: {
+          borrowed_at: string
+          component_id: string
+          created_at: string
+          due_at: string
+          id: string
+          note: string | null
+          quantity: number
+          returned_at: string | null
+          user_id: string
+        }
+        Insert: {
+          borrowed_at?: string
+          component_id: string
+          created_at?: string
+          due_at?: string
+          id?: string
+          note?: string | null
+          quantity?: number
+          returned_at?: string | null
+          user_id: string
+        }
+        Update: {
+          borrowed_at?: string
+          component_id?: string
+          created_at?: string
+          due_at?: string
+          id?: string
+          note?: string | null
+          quantity?: number
+          returned_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "borrow_records_component_id_fkey"
+            columns: ["component_id"]
+            isOneToOne: false
+            referencedRelation: "components"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      components: {
+        Row: {
+          bin_label: string | null
+          borrowable: boolean
+          category: string
+          created_at: string
+          id: string
+          image_url: string | null
+          keywords: string[]
+          name: string
+          qr_code: string | null
+          quantity_available: number
+          quantity_total: number
+          rack_id: string | null
+          specs: string | null
+          updated_at: string
+        }
+        Insert: {
+          bin_label?: string | null
+          borrowable?: boolean
+          category?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          keywords?: string[]
+          name: string
+          qr_code?: string | null
+          quantity_available?: number
+          quantity_total?: number
+          rack_id?: string | null
+          specs?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bin_label?: string | null
+          borrowable?: boolean
+          category?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          keywords?: string[]
+          name?: string
+          qr_code?: string | null
+          quantity_available?: number
+          quantity_total?: number
+          rack_id?: string | null
+          specs?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "components_rack_id_fkey"
+            columns: ["rack_id"]
+            isOneToOne: false
+            referencedRelation: "racks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          phone: string | null
+          roll_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id: string
+          phone?: string | null
+          roll_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          phone?: string | null
+          roll_number?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      racks: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          location_note: string | null
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          location_note?: string | null
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          location_note?: string | null
+          name?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "member"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +336,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "member"],
+    },
   },
 } as const
