@@ -72,7 +72,9 @@ export function AppShell({
               {displayName}
               {me.data?.isAdmin ? <span className="block text-primary">Admin</span> : null}
             </span>
+            <NotificationBell />
             <button
+
               onClick={signOut}
               aria-label="Sign out"
               className="rounded-lg border border-border p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
