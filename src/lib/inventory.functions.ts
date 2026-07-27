@@ -87,16 +87,24 @@ export const getMe = createServerFn({ method: "GET" })
     const [profileRes, adminRes] = await Promise.all([
       context.supabase
         .from("profiles")
-        .select("id, full_name, email, roll_number, phone")
+        .select("id, full_name, email, roll_number, phone, approval_status")
         .eq("id", context.userId)
         .maybeSingle(),
       context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
     ]);
 
+    const status =
+      ((profileRes.data as { approval_status?: string } | null)?.approval_status as
+        | "pending"
+        | "approved"
+        | "rejected"
+        | undefined) ?? "pending";
+
     return {
       userId: context.userId,
       profile: profileRes.data ?? null,
       isAdmin: adminRes.data === true,
+      approvalStatus: status,
     };
   });
 
