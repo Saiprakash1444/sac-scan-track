@@ -347,6 +347,8 @@ function AdminPage() {
             ))}
         </ul>
       </section>
+        </TabsContent>
+      </Tabs>
     </main>
   );
 }
