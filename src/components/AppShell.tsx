@@ -125,7 +125,12 @@ export function AppShell({
       )}
 
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur md:hidden">
+      <nav
+        className={cn(
+          "fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur md:hidden",
+          gated && "hidden",
+        )}
+      >
         <div className="mx-auto flex max-w-md">
           {items.map((item) => {
             const Icon = item.icon;
