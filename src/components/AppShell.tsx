@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Boxes, Camera, ClipboardList, LayoutDashboard, LogOut, Search } from "lucide-react";
+import { Boxes, Camera, ClipboardList, Hourglass, LayoutDashboard, LogOut, Search, ShieldAlert } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { NotificationBell } from "@/components/NotificationBell";
