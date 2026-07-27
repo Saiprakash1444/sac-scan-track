@@ -3,12 +3,27 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Camera, CameraOff, Loader2, QrCode, Search, Sparkles } from "lucide-react";
+import {
+  Camera,
+  CameraOff,
+  ExternalLink,
+  Loader2,
+  PlusCircle,
+  QrCode,
+  Search,
+  Sparkles,
+  WifiOff,
+} from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { ComponentDetail } from "@/components/ComponentDetail";
 import { Button } from "@/components/ui/button";
-import { identifyComponent, type IdentifyResult } from "@/lib/identify.functions";
+import { Badge } from "@/components/ui/badge";
+import {
+  identifyComponent,
+  reportUnknownScan,
+  type IdentifyResult,
+} from "@/lib/identify.functions";
 import { lookupByCode } from "@/lib/inventory.functions";
 import { inventoryQuery } from "@/lib/queries";
 
@@ -35,6 +50,21 @@ type BarcodeDetectorLike = {
   detect: (source: CanvasImageSource) => Promise<{ rawValue: string }[]>;
 };
 
+function useOnline() {
+  const [online, setOnline] = useState(true);
+  useEffect(() => {
+    const sync = () => setOnline(navigator.onLine);
+    sync();
+    window.addEventListener("online", sync);
+    window.addEventListener("offline", sync);
+    return () => {
+      window.removeEventListener("online", sync);
+      window.removeEventListener("offline", sync);
+    };
+  }, []);
+  return online;
+}
+
 function ScanPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -42,10 +72,13 @@ function ScanPage() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<IdentifyResult | null>(null);
   const [matchedId, setMatchedId] = useState<string | null>(null);
+  const [reported, setReported] = useState(false);
 
+  const online = useOnline();
   const inventory = useQuery(inventoryQuery());
   const identify = useServerFn(identifyComponent);
   const lookup = useServerFn(lookupByCode);
+  const report = useServerFn(reportUnknownScan);
 
   useEffect(() => {
     return () => {
@@ -79,10 +112,15 @@ function ScanPage() {
   async function capture() {
     const video = videoRef.current;
     if (!video || video.videoWidth === 0) return;
+    if (!navigator.onLine) {
+      toast.error("Scanning needs an internet connection.");
+      return;
+    }
 
     setBusy(true);
     setResult(null);
     setMatchedId(null);
+    setReported(false);
     try {
       const canvas = document.createElement("canvas");
       const scale = Math.min(1, 1024 / video.videoWidth);
@@ -104,8 +142,12 @@ function ScanPage() {
               setResult({
                 componentId,
                 label: "Matched from QR label",
+                category: "catalogue",
+                description: "",
+                specs: [],
                 confidence: "high",
                 reason: `Code ${raw}`,
+                searchQuery: "",
               });
               return;
             }
@@ -119,11 +161,27 @@ function ScanPage() {
       const aiResult = await identify({ data: { imageDataUrl: dataUrl } });
       setResult(aiResult);
       setMatchedId(aiResult.componentId);
-      if (!aiResult.componentId) toast.error("Couldn't place that one — try the Find tab.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Scan failed");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function flagForAdmin() {
+    if (!result) return;
+    try {
+      await report({
+        data: {
+          name: result.label,
+          category: result.category,
+          notes: result.description || undefined,
+        },
+      });
+      setReported(true);
+      toast.success("Sent to the admin to add to the catalogue");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not send");
     }
   }
 
@@ -133,6 +191,16 @@ function ScanPage() {
   return (
     <AppShell title="Scan" subtitle="Hold the part in frame — no part numbers to type.">
       <div className="space-y-4">
+        {!online ? (
+          <div className="flex items-start gap-3 rounded-xl border border-warning/50 bg-warning/10 p-4 text-sm">
+            <WifiOff className="mt-0.5 size-4 shrink-0 text-warning" />
+            <p>
+              You're offline. QR reading and photo identification both need the network — reconnect
+              to scan, or browse the racks in the Find tab.
+            </p>
+          </div>
+        ) : null}
+
         <div className="panel overflow-hidden">
           <div className="relative aspect-[4/3] bg-surface-2">
             <video
@@ -171,9 +239,9 @@ function ScanPage() {
 
           {cameraState === "live" ? (
             <div className="flex gap-2 border-t border-border p-3">
-              <Button className="flex-1" onClick={capture} disabled={busy}>
+              <Button className="flex-1" onClick={capture} disabled={busy || !online}>
                 {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                {busy ? "Identifying…" : "Identify part"}
+                {busy ? "Identifying…" : online ? "Identify part" : "Offline"}
               </Button>
               <Button variant="secondary" onClick={stopCamera}>
                 Stop
@@ -184,15 +252,45 @@ function ScanPage() {
 
         {result && !component ? (
           <div className="panel space-y-3 p-4">
-            <p className="mono-tag text-warning">No catalogue match</p>
-            <p className="text-sm">
-              Best guess: <span className="font-medium">{result.label}</span>
-              {result.reason ? ` — ${result.reason}` : ""}
-            </p>
-            <Button asChild variant="secondary" className="w-full">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="mono-tag text-accent">Identified</p>
+              <Badge variant="outline">{result.confidence} confidence</Badge>
+              <Badge variant="secondary">not in the SAC catalogue</Badge>
+            </div>
+            <div>
+              <p className="font-display text-lg font-bold">{result.label}</p>
+              <p className="mono-tag text-muted-foreground">{result.category}</p>
+            </div>
+            {result.description ? <p className="text-sm">{result.description}</p> : null}
+            {result.specs.length > 0 ? (
+              <ul className="flex flex-wrap gap-1.5">
+                {result.specs.map((s) => (
+                  <li key={s}>
+                    <Badge variant="secondary">{s}</Badge>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button asChild variant="secondary">
+                <a
+                  href={`https://lens.google.com/search?q=${encodeURIComponent(result.searchQuery || result.label)}`}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  <ExternalLink className="size-4" />
+                  Look it up on Google
+                </a>
+              </Button>
+              <Button variant="outline" onClick={flagForAdmin} disabled={reported}>
+                <PlusCircle className="size-4" />
+                {reported ? "Sent to admin" : "Ask admin to stock it"}
+              </Button>
+            </div>
+            <Button asChild variant="ghost" className="w-full">
               <Link to="/find">
                 <Search className="size-4" />
-                Search it manually
+                Search the racks manually
               </Link>
             </Button>
           </div>
@@ -211,8 +309,9 @@ function ScanPage() {
         <div className="panel flex items-start gap-3 p-4 text-sm text-muted-foreground">
           <QrCode className="mt-0.5 size-4 shrink-0 text-primary" />
           <p>
-            Boxes with a printed QR label are matched instantly. Loose parts fall back to AI
-            recognition, and small stuff (resistors, ICs) resolves to its shared bin box.
+            Boxes with a printed QR label are matched instantly while you're online. Everything else
+            is identified from the photo itself — even parts the room has never stocked — and then
+            matched to a rack if we have one.
           </p>
         </div>
       </div>
