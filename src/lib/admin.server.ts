@@ -169,3 +169,148 @@ export async function runReminderSweep(): Promise<number> {
   if (error) throw new Error(error.message);
   return (data as number | null) ?? 0;
 }
+
+/* ---------------------------------------------------------------- members */
+
+export type AdminMember = {
+  id: string;
+  full_name: string;
+  email: string | null;
+  roll_number: string | null;
+  phone: string | null;
+  approval_status: "pending" | "approved" | "rejected";
+  created_at: string;
+  approved_at: string | null;
+};
+
+export async function fetchMembers(): Promise<AdminMember[]> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("id, full_name, email, roll_number, phone, approval_status, created_at, approved_at")
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as AdminMember[];
+}
+
+export async function setMemberApproval(
+  userId: string,
+  status: "approved" | "rejected" | "pending",
+) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { error } = await supabaseAdmin
+    .from("profiles")
+    .update({
+      approval_status: status,
+      approved_at: status === "approved" ? new Date().toISOString() : null,
+      approved_by: status === "pending" ? null : "admin-panel",
+    } as never)
+    .eq("id", userId);
+  if (error) throw new Error(error.message);
+
+  if (status !== "pending") {
+    await supabaseAdmin.from("notifications").insert({
+      user_id: userId,
+      kind: status === "approved" ? "approved" : "rejected",
+      title: status === "approved" ? "You're approved" : "Access request declined",
+      body:
+        status === "approved"
+          ? "An admin approved your SAC account — you can borrow components now."
+          : "An admin declined your access request. Talk to a club coordinator.",
+    });
+  }
+  return { ok: true };
+}
+
+/* -------------------------------------------------------------- inventory */
+
+export type ComponentInput = {
+  name: string;
+  category: string;
+  specs: string | null;
+  quantity_total: number;
+  quantity_available: number;
+  rack_id: string | null;
+  bin_label: string | null;
+  qr_code: string | null;
+  keywords: string[];
+  borrowable: boolean;
+};
+
+export async function upsertComponent(id: string | null, input: ComponentInput) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const row = { ...input, qr_code: input.qr_code ? input.qr_code.toUpperCase() : null };
+  const { data, error } = id
+    ? await supabaseAdmin.from("components").update(row).eq("id", id).select("id").maybeSingle()
+    : await supabaseAdmin.from("components").insert(row).select("id").maybeSingle();
+  if (error) throw new Error(error.message);
+  return { id: data?.id ?? id };
+}
+
+export async function deleteComponent(id: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { count } = await supabaseAdmin
+    .from("borrow_records")
+    .select("id", { count: "exact", head: true })
+    .eq("component_id", id)
+    .is("returned_at", null);
+  if ((count ?? 0) > 0) throw new Error("Someone still has this part checked out");
+  const { error } = await supabaseAdmin.from("components").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  return { ok: true };
+}
+
+export async function upsertRack(
+  id: string | null,
+  input: { code: string; name: string; description: string | null; location_note: string | null },
+) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const row = { ...input, code: input.code.toUpperCase() };
+  const { error } = id
+    ? await supabaseAdmin.from("racks").update(row).eq("id", id)
+    : await supabaseAdmin.from("racks").insert(row);
+  if (error) throw new Error(error.message);
+  return { ok: true };
+}
+
+export async function fetchCatalogue() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const [racks, components, unknowns] = await Promise.all([
+    supabaseAdmin.from("racks").select("id, code, name, description, location_note").order("code"),
+    supabaseAdmin
+      .from("components")
+      .select(
+        "id, name, category, specs, quantity_total, quantity_available, rack_id, bin_label, qr_code, keywords, borrowable",
+      )
+      .order("name"),
+    supabaseAdmin
+      .from("unknown_scans")
+      .select("id, guessed_name, guessed_category, notes, created_at, resolved_at")
+      .is("resolved_at", null)
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
+  if (racks.error) throw new Error(racks.error.message);
+  if (components.error) throw new Error(components.error.message);
+  return {
+    racks: racks.data ?? [],
+    components: components.data ?? [],
+    unknownScans: (unknowns.data ?? []) as {
+      id: string;
+      guessed_name: string;
+      guessed_category: string | null;
+      notes: string | null;
+      created_at: string;
+    }[],
+  };
+}
+
+export async function dismissUnknownScan(id: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { error } = await supabaseAdmin
+    .from("unknown_scans")
+    .update({ resolved_at: new Date().toISOString() } as never)
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  return { ok: true };
+}
