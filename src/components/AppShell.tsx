@@ -33,6 +33,8 @@ export function AppShell({
 
   const items = NAV.filter((item) => !item.adminOnly || me.data?.isAdmin);
   const displayName = me.data?.profile?.full_name || "Member";
+  const status = me.data?.approvalStatus;
+  const gated = me.isSuccess && status !== "approved";
 
   async function signOut() {
     await queryClient.cancelQueries();
