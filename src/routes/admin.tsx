@@ -27,6 +27,9 @@ import {
   lockAdmin,
   unlockAdmin,
 } from "@/lib/admin.functions";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MembersPanel } from "@/components/admin/MembersPanel";
+import { CataloguePanel } from "@/components/admin/CataloguePanel";
 import { daysUntil, formatDate } from "@/lib/queries";
 
 export const Route = createFileRoute("/admin")({
