@@ -210,6 +210,22 @@ function AdminPage() {
         <Stat label="Running low" value={data.lowStock.length} icon={Boxes} />
       </div>
 
+      <Tabs defaultValue="loans" className="mt-8">
+        <TabsList>
+          <TabsTrigger value="loans">Loans</TabsTrigger>
+          <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="catalogue">Catalogue</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="members" className="mt-6">
+          <MembersPanel />
+        </TabsContent>
+
+        <TabsContent value="catalogue" className="mt-6">
+          <CataloguePanel />
+        </TabsContent>
+
+        <TabsContent value="loans">
       <section className="mt-8 space-y-2">
         <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Currently checked out ({open.length})
