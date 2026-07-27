@@ -175,6 +175,9 @@ export type Database = {
       }
       profiles: {
         Row: {
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
           created_at: string
           email: string | null
           full_name: string
@@ -184,6 +187,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           email?: string | null
           full_name?: string
@@ -193,6 +199,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           email?: string | null
           full_name?: string
@@ -229,6 +238,47 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      unknown_scans: {
+        Row: {
+          created_at: string
+          guessed_category: string | null
+          guessed_name: string
+          id: string
+          notes: string | null
+          resolved_at: string | null
+          resolved_component_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          guessed_category?: string | null
+          guessed_name: string
+          id?: string
+          notes?: string | null
+          resolved_at?: string | null
+          resolved_component_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          guessed_category?: string | null
+          guessed_name?: string
+          id?: string
+          notes?: string | null
+          resolved_at?: string | null
+          resolved_component_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unknown_scans_resolved_component_id_fkey"
+            columns: ["resolved_component_id"]
+            isOneToOne: false
+            referencedRelation: "components"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -277,6 +327,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_approved: { Args: { _user_id: string }; Returns: boolean }
       return_component: {
         Args: { _damage_note?: string; _damaged?: boolean; _record_id: string }
         Returns: undefined
