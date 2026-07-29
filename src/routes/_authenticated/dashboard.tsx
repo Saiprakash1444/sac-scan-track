@@ -85,8 +85,12 @@ function DashboardPage() {
   const open = rows.filter((r) => !r.returned_at);
   const overdue = open.filter((r) => daysUntil(r.due_at) < 0);
   const lowStock = components.filter(
-    (c) => c.borrowable && c.quantity_available <= Math.max(1, Math.floor(c.quantity_total * 0.25)),
+    (c) =>
+      c.borrowable &&
+      c.category !== "mech" &&
+      c.quantity_available <= Math.max(1, Math.floor(c.quantity_total * 0.25)),
   );
+
   const borrowers = new Set(open.map((r) => r.user_id)).size;
 
   return (

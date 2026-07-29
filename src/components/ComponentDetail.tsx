@@ -15,6 +15,13 @@ export function StockBadge({ component }: { component: Component }) {
   if (!component.borrowable) {
     return <Badge variant="secondary">Room use only</Badge>;
   }
+  if (component.category === "mech") {
+    return (
+      <Badge variant="outline" className="text-accent">
+        In the box
+      </Badge>
+    );
+  }
   if (avail === 0) {
     return <Badge variant="destructive">All out</Badge>;
   }
@@ -27,6 +34,7 @@ export function StockBadge({ component }: { component: Component }) {
     </Badge>
   );
 }
+
 
 export function LocationLine({ component, rack }: { component: Component; rack?: Rack }) {
   return (
@@ -64,7 +72,9 @@ export function ComponentDetail({
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not borrow"),
   });
 
+  const isMech = component.category === "mech";
   const maxQty = Math.max(1, component.quantity_available);
+
 
   return (
     <div className="panel p-4">
@@ -97,17 +107,19 @@ export function ComponentDetail({
           }}
         >
           <div className="flex gap-3">
-            <div className="flex-1 space-y-1.5">
-              <Label htmlFor="qty">Quantity</Label>
-              <Input
-                id="qty"
-                type="number"
-                min={1}
-                max={maxQty}
-                value={quantity}
-                onChange={(e) => setQuantity(Math.min(maxQty, Math.max(1, +e.target.value || 1)))}
-              />
-            </div>
+            {isMech ? null : (
+              <div className="flex-1 space-y-1.5">
+                <Label htmlFor="qty">Quantity</Label>
+                <Input
+                  id="qty"
+                  type="number"
+                  min={1}
+                  max={maxQty}
+                  value={quantity}
+                  onChange={(e) => setQuantity(Math.min(maxQty, Math.max(1, +e.target.value || 1)))}
+                />
+              </div>
+            )}
             <div className="flex-1 space-y-1.5">
               <Label htmlFor="days">Return in (days)</Label>
               <Input
@@ -123,16 +135,17 @@ export function ComponentDetail({
           <Button
             type="submit"
             className="w-full"
-            disabled={mutation.isPending || component.quantity_available === 0}
+            disabled={mutation.isPending || (!isMech && component.quantity_available === 0)}
           >
             {mutation.isPending ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
               <PackageCheck className="size-4" />
             )}
-            {component.quantity_available === 0 ? "Out of stock" : "Borrow in my name"}
+            {!isMech && component.quantity_available === 0 ? "Out of stock" : "Borrow in my name"}
           </Button>
         </form>
+
       ) : (
         <p className="mt-4 rounded-lg border border-border bg-surface-2 p-3 text-sm text-muted-foreground">
           This is a shared bin box — take what you need inside the room, no checkout needed.
