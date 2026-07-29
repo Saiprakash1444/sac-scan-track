@@ -72,7 +72,9 @@ export function ComponentDetail({
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not borrow"),
   });
 
+  const isMech = component.category === "mech";
   const maxQty = Math.max(1, component.quantity_available);
+
 
   return (
     <div className="panel p-4">
