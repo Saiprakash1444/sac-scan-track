@@ -15,6 +15,13 @@ export function StockBadge({ component }: { component: Component }) {
   if (!component.borrowable) {
     return <Badge variant="secondary">Room use only</Badge>;
   }
+  if (component.category === "mech") {
+    return (
+      <Badge variant="outline" className="text-accent">
+        In the box
+      </Badge>
+    );
+  }
   if (avail === 0) {
     return <Badge variant="destructive">All out</Badge>;
   }
@@ -27,6 +34,7 @@ export function StockBadge({ component }: { component: Component }) {
     </Badge>
   );
 }
+
 
 export function LocationLine({ component, rack }: { component: Component; rack?: Rack }) {
   return (
