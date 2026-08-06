@@ -418,7 +418,10 @@ name shouldn't need a redeploy.
 ## 14. Migration off Lovable Cloud — status
 
 Constraint: **≤ 40 users.** Optimise for free tiers and operational simplicity, not scale.
-Full runbook: **[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)**.
+
+- **[`docs/DEPLOY-STATUS.md`](docs/DEPLOY-STATUS.md)** — ⭐ live progress log, decisions,
+  resource IDs, gotchas. **Read this first when resuming work.**
+- **[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)** — the step-by-step runbook.
 
 ### Done in-repo ✅
 

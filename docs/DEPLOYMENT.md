@@ -65,10 +65,24 @@ SELECT jobname, schedule, active FROM cron.job;
 
 Authentication → URL Configuration:
 
-- **Site URL:** `https://<your-app>.vercel.app`
-- **Redirect URLs:** add `https://<your-app>.vercel.app/**` and `http://localhost:5173/**`
+- **Site URL:** `https://<your-app>.vercel.app` — one value, no trailing slash, no path
+- **Redirect URLs:** one per line —
+  ```
+  https://<your-app>.vercel.app/**
+  https://<vercel-project-name>-*.vercel.app/**
+  http://localhost:8080/**
+  ```
 
-⚠️ Skipping this breaks email confirmation links and any OAuth redirect.
+The dev server is **port 8080**, not Vite's default 5173 — the Lovable preset pins it
+with `strictPort: true`.
+
+The middle line covers Vercel **preview deployments**, which get a fresh subdomain per
+push (`<project>-git-<branch>-<scope>.vercel.app`). Without it, auth works in production
+but breaks on every preview.
+
+⚠️ Skipping this breaks email confirmation links. `auth.tsx` passes
+`emailRedirectTo: window.location.origin` on signup, and Supabase rejects any origin not
+on this allowlist.
 
 ---
 
