@@ -148,13 +148,22 @@ they are unrelated (CONTEXT.md §7):
 Nothing to do. It is gated by `SAC_ADMIN_PASSWORD`, not by any database role.
 Open `https://<your-app>.vercel.app/admin` and enter the password.
 
-### b) The `/dashboard` role + self-approval
+This is what makes the whole thing bootstrappable: the panel needs no account, so
+you can create the very first member from it.
 
-1. Sign up normally in the app. You land on **"Waiting for admin approval"** —
-   expected: `handle_new_user()` creates every profile as `pending`.
-2. Go to `/admin`, unlock, open the **Members** tab, approve yourself.
-3. To also get `/dashboard` (which needs the `admin` row in `user_roles`), run this
-   once in the Supabase SQL Editor:
+### b) Your own member account
+
+There is **no public sign-up** — accounts exist only because an admin made them.
+
+1. `/admin` → unlock → **Members** tab → **New member**
+2. Enter your name and email. The account is created already approved, and a
+   generated password is shown **once**. Copy it.
+3. Sign in at `/auth` with that email and password.
+
+### c) The `/dashboard` role
+
+`/dashboard` additionally needs an `admin` row in `user_roles`. Run this once in
+the Supabase SQL Editor:
 
 ```sql
 INSERT INTO public.user_roles (user_id, role)
@@ -169,9 +178,9 @@ ON CONFLICT (user_id, role) DO NOTHING;
 | Check | Expected |
 |---|---|
 | `/` loads | landing page |
-| Sign up → `/scan` | "Waiting for admin approval" |
-| `/admin` + password | unlocks; Members tab lists you |
-| After approving yourself | `/scan`, `/find`, `/my-items` all work |
+| `/auth` | sign-in only — no Google button, no "create an account" link |
+| `/admin` + password | unlocks; **New member** creates an account and shows a password once |
+| Sign in as that member | `/scan`, `/find`, `/my-items` all work immediately — no approval step |
 | `/find` | 6 racks, 28 seeded components |
 | `/scan` → photo of any part | identifies it |
 | Borrow a part | stock decrements; appears in `/my-items` |
@@ -183,41 +192,51 @@ before giving up.
 
 ---
 
-## ⚠️ Known issue: the "Continue with Google" button
+## Access model: admin-issued accounts
 
-`src/integrations/lovable/index.ts` routes Google sign-in through
-**`https://oauth.lovable.app`** — a Lovable-hosted broker tied to Lovable Cloud
-projects (verified in the installed `@lovable.dev/cloud-auth-js` bundle).
+Decided 2026-08-06. **There is no public sign-up and no Google sign-in.**
 
-**On a self-owned Supabase project this button will not work.** Email/password
-sign-in is unaffected and works out of the box, so the app is fully usable
-without touching this.
+An admin creates each account from `/admin` → Members → **New member**. The server
+generates a 12-character password, creates the Supabase auth user with
+`email_confirm: true`, marks the profile `approved`, and returns the password to
+the admin **once**. The admin passes it to the member in person or over chat.
 
-To fix it properly, switch to Supabase's native Google OAuth:
+Why it is built this way:
 
-1. Google Cloud Console → create an OAuth 2.0 Client ID (Web application)
+- **No email dependency.** Supabase's built-in SMTP is rate limited to a handful
+  of messages an hour on the free tier — an invite-link flow would stall the
+  moment you onboarded a whole club in one sitting. Nothing here sends mail.
+- **The password is never stored readably.** Supabase keeps only the hash, so a
+  lost password can be *reset* (Members → Reset password, which shows a new one
+  once) but never looked up.
+- **Approval is now a kill switch, not a queue.** Admin-created accounts start
+  approved; **Revoke** sets `rejected` and locks the member out. The "Access
+  requests" section only appears if legacy `pending` rows exist from before the
+  switch.
+
+What was removed: the "Continue with Google" button, the sign-up form, and
+`src/integrations/lovable/index.ts` — a shim that routed OAuth through
+`https://oauth.lovable.app`, a Lovable-hosted broker that cannot work against a
+self-owned Supabase project. The `sac.redirect` sessionStorage dance in
+`src/routes/index.tsx` existed only to catch that broker's return trip and went
+with it.
+
+`@lovable.dev/cloud-auth-js` is left in `package.json` deliberately — it is now
+unused by our code, but Lovable's own build may expect it.
+
+### If you ever want Google sign-in back
+
+Use Supabase's **native** provider, not the Lovable broker:
+
+1. Google Cloud Console → OAuth 2.0 Client ID (Web application)
 2. Authorised redirect URI: `https://<ref>.supabase.co/auth/v1/callback`
 3. Supabase → Authentication → Providers → Google → paste client ID + secret
-4. Patch `src/routes/auth.tsx`:
+4. In `src/routes/auth.tsx`, call `supabase.auth.signInWithOAuth({ provider: "google",
+   options: { redirectTo: \`${window.location.origin}${destination}\` } })`
 
-```ts
-// replace the lovable.auth.signInWithOAuth call in handleGoogle()
-const { error } = await supabase.auth.signInWithOAuth({
-  provider: "google",
-  options: { redirectTo: `${window.location.origin}${destination}` },
-});
-if (error) {
-  toast.error("Google sign-in failed. Try email instead.");
-  return;
-}
-// the browser navigates away; nothing after this runs
-```
-
-Then `src/integrations/lovable/index.ts` and the `sac.redirect` sessionStorage
-dance in `src/routes/index.tsx` become dead code.
-
-**Alternative:** delete the Google button entirely and run email-only. For a
-40-person club that is a legitimate simplification.
+Note this reopens self-registration: anyone with a Google account could create a
+profile. You would want `handle_new_user()` to keep defaulting to `pending` and
+the approval queue to come back with it.
 
 ---
 

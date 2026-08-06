@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { useSession } from "@tanstack/react-start/server";
 
 export type AdminSession = { unlocked?: boolean };
@@ -220,6 +220,95 @@ export async function setMemberApproval(
     });
   }
   return { ok: true };
+}
+
+/* --------------------------------------------------------- member creation */
+
+/**
+ * Temporary password an admin reads out or pastes into a chat. Drawn from an
+ * alphabet with the ambiguous glyphs removed (`0 O 1 l I`) because these get
+ * transcribed by hand far more often than they get copy-pasted.
+ */
+function generateTempPassword(): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"; // 57 chars
+  const limit = 228; // 57 × 4 — reject the tail so every character stays equally likely
+  let out = "";
+  while (out.length < 12) {
+    for (const byte of randomBytes(24)) {
+      if (byte >= limit) continue;
+      out += alphabet[byte % alphabet.length];
+      if (out.length === 12) break;
+    }
+  }
+  return out;
+}
+
+export type NewMemberInput = {
+  email: string;
+  fullName: string;
+  rollNumber: string | null;
+  phone: string | null;
+};
+
+/**
+ * Creates a member account outright — there is no public sign-up. Returns the
+ * generated password once; it is never stored in readable form, so an admin who
+ * loses it has to issue a new one rather than look the old one up.
+ */
+export async function createMember(input: NewMemberInput) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const password = generateTempPassword();
+
+  // email_confirm skips the confirmation mail: the credentials are handed over
+  // in person. Supabase's built-in SMTP is rate limited to a handful of messages
+  // an hour on the free tier, which would stall onboarding a whole club anyway.
+  const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    email: input.email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: input.fullName },
+  });
+  if (error) {
+    // Supabase phrases the duplicate case in a way that reads badly in a toast.
+    if (/already|exists|registered/i.test(error.message)) {
+      throw new Error("That email already has an account.");
+    }
+    throw new Error(error.message);
+  }
+
+  const userId = data.user?.id;
+  if (!userId) throw new Error("Supabase accepted the request but returned no user");
+
+  // handle_new_user() has already inserted the profile row as `pending`. An
+  // admin-created account is approved by definition, so flip it and fill in the
+  // fields the trigger cannot see. Upsert rather than update: if the trigger is
+  // ever missing, an update would silently touch zero rows and leave a member
+  // who can sign in but has no profile.
+  const { error: profileError } = await supabaseAdmin.from("profiles").upsert(
+    {
+      id: userId,
+      full_name: input.fullName,
+      email: input.email,
+      roll_number: input.rollNumber,
+      phone: input.phone,
+      approval_status: "approved",
+      approved_at: new Date().toISOString(),
+      approved_by: "admin-panel",
+    } as never,
+    { onConflict: "id" },
+  );
+  if (profileError) throw new Error(profileError.message);
+
+  return { userId, password };
+}
+
+/** Issues a fresh password for an existing member who has lost theirs. */
+export async function resetMemberPassword(userId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const password = generateTempPassword();
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, { password });
+  if (error) throw new Error(error.message);
+  return { password };
 }
 
 /* -------------------------------------------------------------- inventory */

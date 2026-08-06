@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Boxes, Camera, ClipboardList, MapPin, QrCode, ScanLine } from "lucide-react";
 
@@ -44,21 +44,11 @@ const FEATURES = [
 ];
 
 function Landing() {
-  const navigate = useNavigate();
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
-    const saved = sessionStorage.getItem("sac.redirect");
-    if (saved) {
-      supabase.auth.getSession().then(({ data }) => {
-        if (data.session) {
-          sessionStorage.removeItem("sac.redirect");
-          navigate({ to: saved as "/scan", replace: true });
-        }
-      });
-    }
-  }, [navigate]);
+  }, []);
 
   return (
     <div className="grid-backdrop min-h-screen">

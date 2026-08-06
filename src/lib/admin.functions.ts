@@ -87,6 +87,31 @@ export const setMemberStatus = createServerFn({ method: "POST" })
     return setMemberApproval(data.userId, data.status);
   });
 
+export const createMember = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        email: z.string().trim().toLowerCase().email().max(200),
+        fullName: z.string().trim().min(1).max(120),
+        rollNumber: z.string().trim().max(40).nullable().default(null),
+        phone: z.string().trim().max(20).nullable().default(null),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    if (!(await isAdminUnlocked())) throw new Error("Admin panel is locked");
+    const { createMember: create } = await import("./admin.server");
+    return create(data);
+  });
+
+export const resetMemberPassword = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ userId: z.string().uuid() }).parse(input))
+  .handler(async ({ data }) => {
+    if (!(await isAdminUnlocked())) throw new Error("Admin panel is locked");
+    const { resetMemberPassword: reset } = await import("./admin.server");
+    return reset(data.userId);
+  });
+
 /* ----------------------------------------------------------- catalogue io */
 
 export const getAdminCatalogue = createServerFn({ method: "GET" }).handler(async () => {
