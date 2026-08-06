@@ -12,4 +12,8 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Hard-pin the Vercel target for our own CI. Per the preset's own contract, a
+  // Lovable build force-overrides preset/output back to Cloudflare, so this is
+  // safe to commit while the repo stays git-synced with the Lovable editor.
+  nitro: { preset: "vercel" },
 });

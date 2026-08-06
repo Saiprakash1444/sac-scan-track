@@ -34,8 +34,8 @@ export const identifyComponent = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }): Promise<IdentifyResult> => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("AI is not configured for this project yet.");
+    // Server-only: keeps provider API keys out of the client bundle.
+    const { callVisionModel } = await import("./ai-vision.server");
 
     const { data: rows, error } = await context.supabase
       .from("components")
@@ -50,57 +50,29 @@ export const identifyComponent = createServerFn({ method: "POST" })
       )
       .join("\n");
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Lovable-API-Key": apiKey,
+    const content = await callVisionModel([
+      {
+        role: "system",
+        content: [
+          "You are a hardware identification expert for a college robotics club.",
+          "STEP 1 — Identify the object in the photo on its own merits. Name the exact part if you can (e.g. 'Arduino Nano V3 (CH340)', 'MG996R servo', 'TP4056 charging module'). Never restrict yourself to any list. If it is generic (a resistor, a screw, an IC), say the generic family.",
+          "STEP 2 — Only then, check whether it corresponds to a row of the club catalogue below (format: id | name | category | specs | keywords). Tiny indistinguishable parts (resistors, capacitors, ICs, LEDs, screws) should map to the relevant shared *box* row. If nothing plausibly matches, return an empty id — that is a normal, useful answer.",
+          "",
+          "Reply with strict JSON only:",
+          '{"label":"<specific part name>","category":"<short family, e.g. microcontroller, motor, sensor, passive, tool>","description":"<max 30 words: what it does / what it is used for>","specs":["<up to 4 short key specs, e.g. 5V logic, 16MHz>"],"searchQuery":"<best 3-8 word web search phrase for this part>","id":"<catalogue id or empty string>","confidence":"high|medium|low","reason":"<max 18 words>"}',
+          "",
+          "CATALOGUE:",
+          catalogue || "(empty)",
+        ].join("\n"),
       },
-      body: JSON.stringify({
-        model: "google/gemini-3.6-flash",
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content: [
-              "You are a hardware identification expert for a college robotics club.",
-              "STEP 1 — Identify the object in the photo on its own merits. Name the exact part if you can (e.g. 'Arduino Nano V3 (CH340)', 'MG996R servo', 'TP4056 charging module'). Never restrict yourself to any list. If it is generic (a resistor, a screw, an IC), say the generic family.",
-              "STEP 2 — Only then, check whether it corresponds to a row of the club catalogue below (format: id | name | category | specs | keywords). Tiny indistinguishable parts (resistors, capacitors, ICs, LEDs, screws) should map to the relevant shared *box* row. If nothing plausibly matches, return an empty id — that is a normal, useful answer.",
-              "",
-              "Reply with strict JSON only:",
-              '{"label":"<specific part name>","category":"<short family, e.g. microcontroller, motor, sensor, passive, tool>","description":"<max 30 words: what it does / what it is used for>","specs":["<up to 4 short key specs, e.g. 5V logic, 16MHz>"],"searchQuery":"<best 3-8 word web search phrase for this part>","id":"<catalogue id or empty string>","confidence":"high|medium|low","reason":"<max 18 words>"}',
-              "",
-              "CATALOGUE:",
-              catalogue || "(empty)",
-            ].join("\n"),
-          },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "What is this part? Identify it, then match the catalogue." },
-              { type: "image_url", image_url: { url: data.imageDataUrl } },
-            ],
-          },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "What is this part? Identify it, then match the catalogue." },
+          { type: "image_url", image_url: { url: data.imageDataUrl } },
         ],
-      }),
-    });
-
-    if (response.status === 429) {
-      throw new Error("AI scanning is rate limited right now — try again in a moment.");
-    }
-    if (response.status === 402) {
-      throw new Error("AI credits are exhausted. Add credits to keep camera scanning working.");
-    }
-    if (!response.ok) {
-      const body = await response.text();
-      console.error("[identify] gateway error", response.status, body);
-      throw new Error("Could not identify the photo. Use manual search instead.");
-    }
-
-    const payload = (await response.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    const content = payload.choices?.[0]?.message?.content ?? "{}";
+      },
+    ]);
 
     let parsed: Record<string, unknown> = {};
     try {
