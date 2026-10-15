@@ -13,16 +13,16 @@ export const Route = createFileRoute("/auth")({
   validateSearch: z.object({ redirect: z.string().optional() }),
   head: () => ({
     meta: [
-      { title: "Sign in | SAC Robotics Inventory" },
+      { title: "Sign in | RMI Inventory" },
       {
         name: "description",
         content:
-          "Sign in to the SAC robotics club inventory to scan components, check stock and borrow parts.",
+          "Sign in to RMI Inventory to find parts, check stock and borrow from the club room.",
       },
-      { property: "og:title", content: "Sign in | SAC Robotics Inventory" },
+      { property: "og:title", content: "Sign in | RMI Inventory" },
       {
         property: "og:description",
-        content: "Member access to the SAC robotics club component inventory.",
+        content: "Member access to the RMI club component inventory.",
       },
     ],
   }),
@@ -30,7 +30,7 @@ export const Route = createFileRoute("/auth")({
 });
 
 function safePath(value?: string) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/scan";
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/home";
   return value;
 }
 
@@ -62,7 +62,7 @@ function AuthPage() {
       <div className="panel w-full max-w-sm p-6">
         <Link to="/" className="flex items-center gap-2">
           <img src="/brand/rmi-cube.png" alt="RMI" className="size-9 rounded-lg" />
-          <span className="font-display text-base font-bold">SAC Inventory</span>
+          <span className="font-display text-base font-bold">RMI Inventory</span>
         </Link>
 
         <h1 className="mt-6 text-xl font-bold">Member sign in</h1>

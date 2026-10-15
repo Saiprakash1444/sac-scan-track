@@ -215,7 +215,7 @@ export async function setMemberApproval(
       title: status === "approved" ? "You're approved" : "Access request declined",
       body:
         status === "approved"
-          ? "An admin approved your SAC account — you can borrow components now."
+          ? "An admin approved your RMI Inventory account — you can borrow components now."
           : "An admin declined your access request. Talk to a club coordinator.",
     });
   }
@@ -360,6 +360,33 @@ export async function upsertRack(
     : await supabaseAdmin.from("racks").insert(row);
   if (error) throw new Error(error.message);
   return { ok: true };
+}
+
+export async function deleteRack(id: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { count, error: countError } = await supabaseAdmin
+    .from("components")
+    .select("id", { count: "exact", head: true })
+    .eq("rack_id", id);
+  if (countError) throw new Error(countError.message);
+  if ((count ?? 0) > 0) {
+    throw new Error("Move or delete the parts in this section first");
+  }
+  const { error } = await supabaseAdmin.from("racks").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  return { ok: true };
+}
+
+/** Adds many parts in one insert, so a freshly sorted section lands all at once. */
+export async function insertComponents(rows: ComponentInput[]) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const prepared = rows.map((row) => ({
+    ...row,
+    qr_code: row.qr_code ? row.qr_code.toUpperCase() : null,
+  }));
+  const { data, error } = await supabaseAdmin.from("components").insert(prepared).select("id");
+  if (error) throw new Error(error.message);
+  return { added: data?.length ?? 0 };
 }
 
 export async function fetchCatalogue() {

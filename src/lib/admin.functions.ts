@@ -173,6 +173,28 @@ export const saveRack = createServerFn({ method: "POST" })
     return upsertRack(id, rest);
   });
 
+export const removeRack = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data }) => {
+    if (!(await isAdminUnlocked())) throw new Error("Admin panel is locked");
+    const { deleteRack } = await import("./admin.server");
+    return deleteRack(data.id);
+  });
+
+export const addComponents = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({ rows: z.array(componentSchema.omit({ id: true })).min(1).max(300) })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    if (!(await isAdminUnlocked())) throw new Error("Admin panel is locked");
+    const bad = data.rows.find((r) => r.quantity_available > r.quantity_total);
+    if (bad) throw new Error(`${bad.name}: available cannot be more than the total`);
+    const { insertComponents } = await import("./admin.server");
+    return insertComponents(data.rows);
+  });
+
 export const dismissScan = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {

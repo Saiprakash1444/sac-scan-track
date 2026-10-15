@@ -27,16 +27,16 @@ import { borrowLogQuery, daysUntil, formatDate } from "@/lib/queries";
 export const Route = createFileRoute("/_authenticated/my-items")({
   head: () => ({
     meta: [
-      { title: "My borrowed items | SAC Inventory" },
+      { title: "My borrowed items | RMI Inventory" },
       {
         name: "description",
         content:
           "See every component checked out in your name, extend a due date, and mark it returned — flagging damage if needed.",
       },
-      { property: "og:title", content: "My borrowed items | SAC Inventory" },
+      { property: "og:title", content: "My borrowed items | RMI Inventory" },
       {
         property: "og:description",
-        content: "Your open checkouts, return reminders and extensions for the SAC robotics room.",
+        content: "Your open checkouts, return reminders and extensions for the RMI club room.",
       },
     ],
   }),
@@ -150,7 +150,7 @@ function MyItemsPage() {
                 {overdue.length} item{overdue.length > 1 ? "s" : ""} overdue
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Return them to the SAC room, or tap “Need it longer” to push the due date.
+                Return them to the club room, or tap “Need it longer” to push the due date.
               </p>
             </div>
           ) : null}
@@ -163,10 +163,10 @@ function MyItemsPage() {
               <div className="panel flex flex-col items-center gap-3 p-6 text-center">
                 <PackageOpen className="size-7 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
-                  Nothing checked out. Scan a part to borrow it.
+                  Nothing checked out. Find a part to borrow it.
                 </p>
                 <Button asChild variant="secondary">
-                  <Link to="/scan">Open scanner</Link>
+                  <Link to="/find">Browse parts</Link>
                 </Button>
               </div>
             ) : (

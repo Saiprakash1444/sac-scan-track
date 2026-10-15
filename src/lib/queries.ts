@@ -46,3 +46,8 @@ export function formatDateTime(iso: string): string {
     minute: "2-digit",
   });
 }
+
+/** Seed racks are named "Rack 1 - Microcontrollers"; the code is shown separately. */
+export function sectionTitle(name: string) {
+  return name.replace(/^Rack \d+\s*[-–]\s*/, "");
+}

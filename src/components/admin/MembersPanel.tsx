@@ -25,7 +25,7 @@ type IssuedCredential = { name: string; email: string; password: string };
 function CredentialCard({ issued, onDone }: { issued: IssuedCredential; onDone: () => void }) {
   const [copied, setCopied] = useState(false);
 
-  const message = `SAC Inventory login\nEmail: ${issued.email}\nPassword: ${issued.password}\nSign in at ${typeof window === "undefined" ? "" : window.location.origin}/auth`;
+  const message = `RMI Inventory login\nEmail: ${issued.email}\nPassword: ${issued.password}\nSign in at ${typeof window === "undefined" ? "" : window.location.origin}/auth`;
 
   async function copy() {
     try {

@@ -16,6 +16,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedFindRouteImport } from './routes/_authenticated/find'
+import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
 import { Route as AuthenticatedMyItemsRouteImport } from './routes/_authenticated/my-items'
 import { Route as AuthenticatedScanRouteImport } from './routes/_authenticated/scan'
 
@@ -53,6 +54,11 @@ const AuthenticatedFindRoute = AuthenticatedFindRouteImport.update({
   path: '/find',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedHomeRoute = AuthenticatedHomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedMyItemsRoute = AuthenticatedMyItemsRouteImport.update({
   id: '/my-items',
   path: '/my-items',
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/find': typeof AuthenticatedFindRoute
+  '/home': typeof AuthenticatedHomeRoute
   '/my-items': typeof AuthenticatedMyItemsRoute
   '/scan': typeof AuthenticatedScanRoute
 }
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/find': typeof AuthenticatedFindRoute
+  '/home': typeof AuthenticatedHomeRoute
   '/my-items': typeof AuthenticatedMyItemsRoute
   '/scan': typeof AuthenticatedScanRoute
 }
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/find': typeof AuthenticatedFindRoute
+  '/_authenticated/home': typeof AuthenticatedHomeRoute
   '/_authenticated/my-items': typeof AuthenticatedMyItemsRoute
   '/_authenticated/scan': typeof AuthenticatedScanRoute
 }
@@ -105,6 +114,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/dashboard'
     | '/find'
+    | '/home'
     | '/my-items'
     | '/scan'
   fileRoutesByTo: FileRoutesByTo
@@ -115,6 +125,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/dashboard'
     | '/find'
+    | '/home'
     | '/my-items'
     | '/scan'
   id:
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/_authenticated/dashboard'
     | '/_authenticated/find'
+    | '/_authenticated/home'
     | '/_authenticated/my-items'
     | '/_authenticated/scan'
   fileRoutesById: FileRoutesById
@@ -189,6 +201,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFindRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/home': {
+      id: '/_authenticated/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof AuthenticatedHomeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/my-items': {
       id: '/_authenticated/my-items'
       path: '/my-items'
@@ -209,6 +228,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedFindRoute: typeof AuthenticatedFindRoute
+  AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
   AuthenticatedMyItemsRoute: typeof AuthenticatedMyItemsRoute
   AuthenticatedScanRoute: typeof AuthenticatedScanRoute
 }
@@ -216,6 +236,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedFindRoute: AuthenticatedFindRoute,
+  AuthenticatedHomeRoute: AuthenticatedHomeRoute,
   AuthenticatedMyItemsRoute: AuthenticatedMyItemsRoute,
   AuthenticatedScanRoute: AuthenticatedScanRoute,
 }

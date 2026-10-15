@@ -35,16 +35,16 @@ import { daysUntil, formatDate } from "@/lib/queries";
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
-      { title: "SAC admin panel | SAC Inventory" },
+      { title: "RMI admin panel | RMI Inventory" },
       {
         name: "description",
         content:
           "Single-credential room panel: see who took which component, what is due back, and damage reports from returns.",
       },
-      { property: "og:title", content: "SAC admin panel | SAC Inventory" },
+      { property: "og:title", content: "RMI admin panel | RMI Inventory" },
       {
         property: "og:description",
-        content: "Monitor SAC robotics room checkouts, due dates and damaged parts in one place.",
+        content: "Monitor RMI club room checkouts, due dates and damaged parts in one place.",
       },
       { name: "robots", content: "noindex" },
     ],
@@ -77,7 +77,7 @@ function UnlockCard() {
         <span className="flex size-10 items-center justify-center rounded-xl bg-gradient-signal">
           <ShieldCheck className="size-5 text-primary-foreground" />
         </span>
-        <h1 className="mt-4 font-display text-xl font-bold">SAC admin panel</h1>
+        <h1 className="mt-4 font-display text-xl font-bold">RMI admin panel</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           One shared credential for the room computer. Enter the admin password to monitor
           checkouts, due dates and damage reports.
@@ -185,7 +185,7 @@ function AdminPage() {
     <main className="mx-auto max-w-5xl px-4 pb-16 pt-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-bold">SAC admin panel</h1>
+          <h1 className="font-display text-2xl font-bold">RMI admin panel</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Who has what, what's due back, and what came back broken.
           </p>

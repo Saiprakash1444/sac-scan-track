@@ -1,6 +1,15 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Camera, ClipboardList, Hourglass, LayoutDashboard, LogOut, Search, ShieldAlert } from "lucide-react";
+import {
+  Camera,
+  ClipboardList,
+  Home,
+  Hourglass,
+  LayoutDashboard,
+  LogOut,
+  Search,
+  ShieldAlert,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 import { NotificationBell } from "@/components/NotificationBell";
@@ -9,11 +18,12 @@ import { meQuery } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
 
-type NavTo = "/scan" | "/find" | "/my-items" | "/dashboard";
+type NavTo = "/home" | "/find" | "/my-items" | "/scan" | "/dashboard";
 const NAV: { to: NavTo; label: string; icon: typeof Camera; adminOnly?: boolean }[] = [
-  { to: "/scan", label: "Scan", icon: Camera },
-  { to: "/find", label: "Find", icon: Search },
+  { to: "/home", label: "Home", icon: Home },
+  { to: "/find", label: "Browse", icon: Search },
   { to: "/my-items", label: "My items", icon: ClipboardList },
+  { to: "/scan", label: "Scan", icon: Camera },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, adminOnly: true },
 ];
 
@@ -47,9 +57,16 @@ export function AppShell({
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
-          <Link to="/scan" className="flex items-center gap-2">
+          <Link to="/home" className="flex items-center gap-2.5">
             <img src="/brand/rmi-cube.png" alt="RMI" className="size-8 rounded-lg" />
-            <span className="font-display text-sm font-bold tracking-tight">SAC Inventory</span>
+            <span className="leading-tight">
+              <span className="block font-display text-sm font-semibold tracking-tight">
+                RMI Inventory
+              </span>
+              <span className="block text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                NIT Trichy
+              </span>
+            </span>
           </Link>
 
           <nav className="ml-auto hidden items-center gap-1 md:flex">
@@ -98,12 +115,12 @@ export function AppShell({
               )}
             </span>
             <h1 className="font-display text-xl font-bold">
-              {status === "rejected" ? "Access declined" : "Waiting for admin approval"}
+              {status === "rejected" ? "Access turned off" : "Account not active yet"}
             </h1>
             <p className="text-sm text-muted-foreground">
               {status === "rejected"
-                ? "An admin declined your request to use the SAC inventory. Speak to a club coordinator if you think this is a mistake."
-                : "Your account was created and a request has been sent to the SAC admin. Once they approve you, scanning, borrowing and returns unlock automatically."}
+                ? "Your access to RMI Inventory has been turned off. Speak to a club coordinator if you think this is a mistake."
+                : "Your account exists but hasn't been activated yet. Ask a club coordinator to approve it in the admin panel, then tap Check again."}
             </p>
             <p className="mono-tag text-muted-foreground">{me.data?.profile?.email ?? ""}</p>
             <button

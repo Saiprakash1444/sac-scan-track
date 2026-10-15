@@ -30,16 +30,16 @@ import { inventoryQuery } from "@/lib/queries";
 export const Route = createFileRoute("/_authenticated/scan")({
   head: () => ({
     meta: [
-      { title: "Scan a component | SAC Inventory" },
+      { title: "Scan a component | RMI Inventory" },
       {
         name: "description",
         content:
-          "Point your camera at a robotics component to identify it, see where it lives in the SAC room and borrow it in one tap.",
+          "Point your camera at a robotics component to identify it, see where it lives in the club room and borrow it in one tap.",
       },
-      { property: "og:title", content: "Scan a component | SAC Inventory" },
+      { property: "og:title", content: "Scan a component | RMI Inventory" },
       {
         property: "og:description",
-        content: "Camera-first component identification for the SAC robotics room.",
+        content: "Camera-first component identification for the RMI club room.",
       },
     ],
   }),
@@ -255,7 +255,7 @@ function ScanPage() {
             <div className="flex flex-wrap items-center gap-2">
               <p className="mono-tag text-accent">Identified</p>
               <Badge variant="outline">{result.confidence} confidence</Badge>
-              <Badge variant="secondary">not in the SAC catalogue</Badge>
+              <Badge variant="secondary">not in the RMI catalogue</Badge>
             </div>
             <div>
               <p className="font-display text-lg font-bold">{result.label}</p>

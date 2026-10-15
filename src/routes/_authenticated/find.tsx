@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { z } from "zod";
 import { Boxes, ChevronRight, Search } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
@@ -8,21 +9,26 @@ import { ComponentDetail, LocationLine, StockBadge } from "@/components/Componen
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { inventoryQuery } from "@/lib/queries";
+import { inventoryQuery, sectionTitle } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/find")({
+  validateSearch: z.object({
+    q: z.string().optional(),
+    tab: z.enum(["parts", "sections"]).optional(),
+    section: z.string().optional(),
+  }),
   head: () => ({
     meta: [
-      { title: "Find a part or rack | SAC Inventory" },
+      { title: "Browse | RMI Inventory" },
       {
         name: "description",
         content:
-          "Type a component name to see exactly which rack and bin it sits in, or open a rack to list everything stored there.",
+          "Search a part to see which section and bin it sits in, or open a section to list everything stored there.",
       },
-      { property: "og:title", content: "Find a part or rack | SAC Inventory" },
+      { property: "og:title", content: "Browse | RMI Inventory" },
       {
         property: "og:description",
-        content: "Search the SAC robotics catalogue by name, or browse rack by rack.",
+        content: "Search the RMI catalogue by name, or browse section by section.",
       },
     ],
   }),
@@ -30,10 +36,15 @@ export const Route = createFileRoute("/_authenticated/find")({
 });
 
 function FindPage() {
+  const params = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
   const inventory = useQuery(inventoryQuery());
-  const [term, setTerm] = useState("");
+  const [term, setTerm] = useState(params.q ?? "");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [rackId, setRackId] = useState<string | null>(null);
+  const tab = params.tab ?? (params.section ? "sections" : "parts");
+  const rackId = params.section ?? null;
+  const setRackId = (id: string | null) =>
+    navigate({ search: { tab: "sections", section: id ?? undefined } });
 
   const components = inventory.data?.components ?? [];
   const racks = inventory.data?.racks ?? [];
@@ -57,18 +68,23 @@ function FindPage() {
   const rackItems = components.filter((c) => c.rack_id === rackId);
 
   return (
-    <AppShell title="Find" subtitle="Search by name, or open a rack to see what's inside.">
-      <Tabs defaultValue="search">
+    <AppShell title="Browse" subtitle="Search by name, or open a section to see what's inside.">
+      <Tabs
+        value={tab}
+        onValueChange={(v) =>
+          navigate({ search: { tab: v as "parts" | "sections", q: term || undefined } })
+        }
+      >
         <TabsList className="w-full">
-          <TabsTrigger value="search" className="flex-1">
-            By name
+          <TabsTrigger value="parts" className="flex-1">
+            Parts
           </TabsTrigger>
-          <TabsTrigger value="racks" className="flex-1">
-            By rack
+          <TabsTrigger value="sections" className="flex-1">
+            Sections
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="search" className="mt-4 space-y-4">
+        <TabsContent value="parts" className="mt-4 space-y-4">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -79,7 +95,7 @@ function FindPage() {
               }}
               placeholder="e.g. servo, L298N, jumper wires"
               className="pl-9"
-              autoFocus
+              autoFocus={!params.section}
             />
           </div>
 
@@ -126,18 +142,18 @@ function FindPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="racks" className="mt-4 space-y-3">
+        <TabsContent value="sections" className="mt-4 space-y-3">
           {openRack ? (
             <div className="space-y-3">
               <button
                 onClick={() => setRackId(null)}
                 className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
               >
-                ← All racks
+                ← All sections
               </button>
               <div className="panel p-4">
                 <p className="mono-tag text-primary">{openRack.code}</p>
-                <h2 className="font-display text-lg font-bold">{openRack.name}</h2>
+                <h2 className="font-display text-lg font-bold">{sectionTitle(openRack.name)}</h2>
                 {openRack.location_note ? (
                   <p className="mt-1 text-sm text-muted-foreground">{openRack.location_note}</p>
                 ) : null}
@@ -157,7 +173,7 @@ function FindPage() {
                 ))}
                 {rackItems.length === 0 ? (
                   <li className="panel p-4 text-sm text-muted-foreground">
-                    This rack has no catalogued components yet.
+                    Nothing catalogued in this section yet.
                   </li>
                 ) : null}
               </ul>
@@ -176,7 +192,7 @@ function FindPage() {
                     <span className="min-w-0 flex-1">
                       <span className="mono-tag block text-primary">{r.code}</span>
                       <span className="block truncate font-medium">
-                        {r.name.replace(/^Rack \d+ - /, "")}
+                        {sectionTitle(r.name)}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {components.filter((c) => c.rack_id === r.id).length} kinds of parts

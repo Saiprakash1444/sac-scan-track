@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { sectionTitle } from "@/lib/queries";
 
 export function StockBadge({ component }: { component: Component }) {
   const { quantity_available: avail, quantity_total: total } = component;
@@ -41,7 +42,7 @@ export function LocationLine({ component, rack }: { component: Component; rack?:
     <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
       <MapPin className="size-3.5 text-primary" />
       <span className="font-medium text-foreground">{rack?.code ?? "Unassigned"}</span>
-      {rack ? <span>· {rack.name.replace(/^Rack \d+ - /, "")}</span> : null}
+      {rack ? <span>· {sectionTitle(rack.name)}</span> : null}
       {component.bin_label ? <span className="mono-tag">bin {component.bin_label}</span> : null}
     </p>
   );

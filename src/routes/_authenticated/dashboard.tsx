@@ -14,16 +14,16 @@ import { borrowLogQuery, daysUntil, formatDate, inventoryQuery, meQuery } from "
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "SAC room dashboard | SAC Inventory" },
+      { title: "Room dashboard | RMI Inventory" },
       {
         name: "description",
         content:
           "Room panel for admins: live stock levels, who has borrowed what, and overdue component alerts.",
       },
-      { property: "og:title", content: "SAC room dashboard | SAC Inventory" },
+      { property: "og:title", content: "Room dashboard | RMI Inventory" },
       {
         property: "og:description",
-        content: "Live stock, active checkouts and overdue alerts for the SAC robotics room.",
+        content: "Live stock, active checkouts and overdue alerts for the RMI club room.",
       },
     ],
   }),
@@ -94,7 +94,7 @@ function DashboardPage() {
   const borrowers = new Set(open.map((r) => r.user_id)).size;
 
   return (
-    <AppShell title="Room dashboard" subtitle="Live view of the SAC component store.">
+    <AppShell title="Room dashboard" subtitle="Live view of the RMI component store.">
       {log.isLoading || inventory.isLoading ? (
         <div className="grid gap-2 sm:grid-cols-2">
           {[0, 1, 2, 3].map((i) => (
