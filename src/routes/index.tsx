@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Boxes, Camera, ClipboardList, MapPin, QrCode, ScanLine } from "lucide-react";
+import { Camera, ClipboardList, MapPin, QrCode, ScanLine } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -54,9 +54,7 @@ function Landing() {
     <div className="grid-backdrop min-h-screen">
       <header className="mx-auto flex max-w-5xl items-center justify-between px-5 py-5">
         <div className="flex items-center gap-2">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-gradient-signal">
-            <Boxes className="size-5 text-primary-foreground" />
-          </span>
+          <img src="/brand/rmi-cube.png" alt="RMI" className="size-9 rounded-lg" />
           <span className="font-display text-base font-bold">SAC Inventory</span>
         </div>
         <Button asChild variant="secondary" size="sm">

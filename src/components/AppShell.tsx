@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Boxes, Camera, ClipboardList, Hourglass, LayoutDashboard, LogOut, Search, ShieldAlert } from "lucide-react";
+import { Camera, ClipboardList, Hourglass, LayoutDashboard, LogOut, Search, ShieldAlert } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { NotificationBell } from "@/components/NotificationBell";
@@ -48,9 +48,7 @@ export function AppShell({
       <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
           <Link to="/scan" className="flex items-center gap-2">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-signal">
-              <Boxes className="size-4 text-primary-foreground" />
-            </span>
+            <img src="/brand/rmi-cube.png" alt="RMI" className="size-8 rounded-lg" />
             <span className="font-display text-sm font-bold tracking-tight">SAC Inventory</span>
           </Link>
 

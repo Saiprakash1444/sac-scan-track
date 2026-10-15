@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Boxes, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { z } from "zod";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -61,9 +61,7 @@ function AuthPage() {
     <div className="grid-backdrop flex min-h-screen items-center justify-center px-4 py-10">
       <div className="panel w-full max-w-sm p-6">
         <Link to="/" className="flex items-center gap-2">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-gradient-signal">
-            <Boxes className="size-5 text-primary-foreground" />
-          </span>
+          <img src="/brand/rmi-cube.png" alt="RMI" className="size-9 rounded-lg" />
           <span className="font-display text-base font-bold">SAC Inventory</span>
         </Link>
 
