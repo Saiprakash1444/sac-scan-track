@@ -22,7 +22,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { extendBorrow, returnComponent } from "@/lib/inventory.functions";
-import { borrowLogQuery, daysUntil, formatDate, mySubmissionsQuery } from "@/lib/queries";
+import {
+  borrowLogQuery,
+  daysUntil,
+  formatDate,
+  mySubmissionsQuery,
+  purposeLabel,
+} from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/my-items")({
   head: () => ({
@@ -196,7 +202,8 @@ function MyItemsPage() {
                         </Badge>
                       </div>
                       <p className="mt-2 text-xs text-muted-foreground">
-                        Taken {formatDate(r.borrowed_at)} · due {formatDate(r.due_at)}
+                        {purposeLabel(r)} · taken {formatDate(r.borrowed_at)} · due{" "}
+                        {formatDate(r.due_at)}
                         {r.extended_count > 0 ? ` · extended ${r.extended_count}×` : ""}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">

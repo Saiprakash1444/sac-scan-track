@@ -1,10 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { AlertTriangle, ArrowRight, Boxes, Camera, ChevronRight, Search } from "lucide-react";
+import { useState } from "react";
+import { Camera, PackagePlus, PackageSearch, Search, ShoppingCart } from "lucide-react";
 
+import { AddPartDialog } from "@/components/AddPartDialog";
 import { AppShell } from "@/components/AppShell";
-import { StockBadge } from "@/components/ComponentDetail";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,12 +23,15 @@ export const Route = createFileRoute("/_authenticated/home")({
       { title: "Home | RMI Inventory" },
       {
         name: "description",
-        content: "What's in the RMI club room, where it lives, and what you're holding.",
+        content: "Find, borrow, add or request parts for the RMI club room.",
       },
     ],
   }),
   component: HomePage,
 });
+
+const ACTION_CLASS =
+  "panel flex w-full flex-col items-start gap-2 p-4 text-left transition-colors hover:border-primary/60";
 
 function HomePage() {
   const navigate = useNavigate();
@@ -37,46 +40,8 @@ function HomePage() {
   const loans = useQuery(borrowLogQuery("mine", true));
   const [term, setTerm] = useState("");
 
-  const components = useMemo(() => inventory.data?.components ?? [], [inventory.data]);
-  const racks = useMemo(() => inventory.data?.racks ?? [], [inventory.data]);
-  const myLoans = loans.data ?? [];
+  const racks = inventory.data?.racks ?? [];
   const firstName = (me.data?.profile?.full_name ?? "").split(" ")[0];
-
-  const stats = useMemo(() => {
-    let inRoom = 0;
-    let out = 0;
-    for (const c of components) {
-      inRoom += c.quantity_available;
-      out += Math.max(0, c.quantity_total - c.quantity_available);
-    }
-    return { kinds: components.length, inRoom, out, sections: racks.length };
-  }, [components, racks]);
-
-  const sections = useMemo(
-    () =>
-      racks.map((r) => {
-        const items = components.filter((c) => c.rack_id === r.id);
-        return {
-          ...r,
-          kinds: items.length,
-          units: items.reduce((sum, c) => sum + c.quantity_total, 0),
-        };
-      }),
-    [racks, components],
-  );
-  const unsorted = components.filter((c) => !c.rack_id).length;
-
-  const runningLow = useMemo(
-    () =>
-      components
-        .filter(
-          (c) =>
-            c.borrowable && c.quantity_total > 1 && c.quantity_available / c.quantity_total < 0.34,
-        )
-        .sort((a, b) => a.quantity_available - b.quantity_available)
-        .slice(0, 6),
-    [components],
-  );
 
   function search(event: React.FormEvent) {
     event.preventDefault();
@@ -84,139 +49,73 @@ function HomePage() {
   }
 
   return (
-    <AppShell
-      title={firstName ? `Hi, ${firstName}` : "RMI club room"}
-      subtitle="Everything in the club room, where it lives, and what's out."
-    >
+    <AppShell title={firstName ? `Hi, ${firstName}` : "RMI club room"}>
       <div className="space-y-6">
         <form onSubmit={search} className="relative">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={term}
             onChange={(e) => setTerm(e.target.value)}
-            placeholder="Find a part — servo, ESP32, multimeter…"
-            className="h-12 pl-10 text-base"
+            placeholder="Search parts — servo, ESP32, multimeter…"
+            className="h-12 pl-10 pr-12 text-base"
           />
+          <Link
+            to="/scan"
+            aria-label="Identify a part with the camera"
+            title="Identify a part with the camera"
+            className="absolute right-1.5 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+          >
+            <Camera className="size-4" />
+          </Link>
         </form>
 
-        <MyLoans loading={loans.isLoading} loans={myLoans} />
+        <div className="grid grid-cols-3 gap-2">
+          <Link to="/find" className={ACTION_CLASS}>
+            <PackageSearch className="size-5 text-primary" />
+            <span className="text-sm font-medium leading-tight">Borrow a part</span>
+          </Link>
+          <AddPartDialog
+            racks={racks}
+            trigger={
+              <button type="button" className={ACTION_CLASS}>
+                <PackagePlus className="size-5 text-primary" />
+                <span className="text-sm font-medium leading-tight">Add a part</span>
+              </button>
+            }
+          />
+          <Link to="/requests" className={ACTION_CLASS}>
+            <ShoppingCart className="size-5 text-primary" />
+            <span className="text-sm font-medium leading-tight">Request a part</span>
+          </Link>
+        </div>
 
-        {inventory.isLoading ? (
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-            {[0, 1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-20 w-full" />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-            <Stat label="Kinds of parts" value={stats.kinds} />
-            <Stat label="Units on the shelves" value={stats.inRoom} />
-            <Stat label="Units out on loan" value={stats.out} />
-            <Stat label="Sections" value={stats.sections} />
-          </div>
-        )}
+        <MyLoans loading={loans.isLoading} loans={loans.data ?? []} />
 
-        <section className="space-y-3">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-lg font-semibold">Sections</h2>
-            <Link
-              to="/find"
-              search={{ tab: "sections" }}
-              className="text-sm text-primary hover:underline"
-            >
-              Browse all
-            </Link>
-          </div>
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Browse by section
+          </h2>
           {inventory.isLoading ? (
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {[0, 1, 2].map((i) => (
-                <Skeleton key={i} className="h-24 w-full" />
-              ))}
-            </div>
+            <Skeleton className="h-10 w-full" />
           ) : (
-            <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {sections.map((s) => (
-                <li key={s.id}>
+            <ul className="flex flex-wrap gap-2">
+              {racks.map((r) => (
+                <li key={r.id}>
                   <Link
                     to="/find"
-                    search={{ tab: "sections", section: s.id }}
-                    className="panel flex h-full items-start gap-3 p-4 transition-colors hover:border-primary/60"
+                    search={{ tab: "sections", section: r.id }}
+                    className="flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-sm transition-colors hover:border-primary/60"
                   >
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-semibold text-primary">
-                      {s.code}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{sectionTitle(s.name)}</span>
-                      {s.location_note ? (
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {s.location_note}
-                        </span>
-                      ) : null}
-                      <span className="mt-1 block text-xs text-muted-foreground">
-                        {s.kinds} kinds · {s.units} units
-                      </span>
-                    </span>
-                    <ChevronRight className="mt-2 size-4 shrink-0 text-muted-foreground" />
+                    <span className="font-semibold text-primary">{r.code}</span>
+                    <span>{sectionTitle(r.name)}</span>
                   </Link>
                 </li>
               ))}
-              {unsorted > 0 ? (
-                <li className="panel flex items-center gap-3 border-dashed p-4 text-sm text-muted-foreground">
-                  <Boxes className="size-5 shrink-0" />
-                  {unsorted} part{unsorted === 1 ? "" : "s"} not assigned to a section yet
-                </li>
-              ) : null}
             </ul>
           )}
         </section>
-
-        {runningLow.length > 0 ? (
-          <section className="space-y-3">
-            <h2 className="flex items-center gap-2 text-lg font-semibold">
-              <AlertTriangle className="size-4 text-warning" />
-              Running low
-            </h2>
-            <ul className="grid gap-2 sm:grid-cols-2">
-              {runningLow.map((c) => (
-                <li key={c.id}>
-                  <Link
-                    to="/find"
-                    search={{ q: c.name }}
-                    className="panel flex items-center gap-3 p-3 transition-colors hover:border-primary/60"
-                  >
-                    <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
-                    <StockBadge component={c} />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        <Link
-          to="/scan"
-          className="panel flex items-center gap-3 p-4 text-sm transition-colors hover:border-primary/60"
-        >
-          <Camera className="size-5 shrink-0 text-primary" />
-          <span className="flex-1">
-            <span className="block font-medium">Found a part and not sure what it is?</span>
-            <span className="text-muted-foreground">
-              Scan its QR label or take a photo to identify it.
-            </span>
-          </span>
-          <ArrowRight className="size-4 text-muted-foreground" />
-        </Link>
       </div>
     </AppShell>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="panel p-4">
-      <p className="text-2xl font-semibold text-foreground">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-    </div>
   );
 }
 
@@ -227,18 +126,8 @@ function MyLoans({
   loading: boolean;
   loans: { id: string; quantity: number; component_name: string; due_at: string }[];
 }) {
-  if (loading) return <Skeleton className="h-20 w-full" />;
-
-  if (loans.length === 0) {
-    return (
-      <div className="panel flex items-center justify-between gap-3 p-4 text-sm">
-        <span className="text-muted-foreground">You're not holding anything from the room.</span>
-        <Link to="/my-items" className="shrink-0 text-primary hover:underline">
-          History
-        </Link>
-      </div>
-    );
-  }
+  if (loading) return <Skeleton className="h-16 w-full" />;
+  if (loans.length === 0) return null;
 
   const sorted = [...loans].sort((a, b) => a.due_at.localeCompare(b.due_at));
   return (

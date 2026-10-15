@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { z } from "zod";
@@ -151,8 +151,20 @@ function FindPage() {
                 </li>
               ))}
               {results.length === 0 ? (
-                <li className="panel p-4 text-sm text-muted-foreground">
-                  Nothing matches "{term}". Try a broader word like "motor" or "sensor".
+                <li className="panel space-y-2 p-4 text-sm text-muted-foreground">
+                  <p>
+                    Nothing matches "{term}". Try a broader word like "motor" or "sensor".
+                  </p>
+                  <p>
+                    Not in the room?{" "}
+                    <Link
+                      to="/requests"
+                      search={{ name: term.trim() }}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      Ask the admins to get it
+                    </Link>
+                  </p>
                 </li>
               ) : null}
             </ul>

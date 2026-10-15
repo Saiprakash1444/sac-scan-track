@@ -37,6 +37,8 @@ export type AdminLoan = {
   extended_count: number;
   damage_reported: boolean;
   damage_note: string | null;
+  purpose: "project" | "personal";
+  project_name: string | null;
 };
 
 export type AdminOverview = {
@@ -55,6 +57,8 @@ type RawRow = {
   extended_count: number;
   damage_reported: boolean;
   damage_note: string | null;
+  purpose: string;
+  project_name: string | null;
   components: { name: string; bin_label: string | null; racks: { code: string } | null } | null;
 };
 
@@ -65,7 +69,7 @@ export async function fetchAdminOverview(): Promise<AdminOverview> {
     supabaseAdmin
       .from("borrow_records")
       .select(
-        "id, user_id, quantity, borrowed_at, due_at, returned_at, extended_count, damage_reported, damage_note, components(name, bin_label, racks(code))",
+        "id, user_id, quantity, borrowed_at, due_at, returned_at, extended_count, damage_reported, damage_note, purpose, project_name, components(name, bin_label, racks(code))",
       )
       .order("borrowed_at", { ascending: false })
       .limit(300),
@@ -97,6 +101,8 @@ export async function fetchAdminOverview(): Promise<AdminOverview> {
     extended_count: r.extended_count,
     damage_reported: r.damage_reported,
     damage_note: r.damage_note,
+    purpose: r.purpose === "project" ? "project" : "personal",
+    project_name: r.project_name,
   }));
 
   const lowStock = (componentsRes.data ?? [])
@@ -544,4 +550,149 @@ export async function reviewSubmission(id: string, approve: boolean, note: strin
   });
 
   return { ok: true, componentId };
+}
+
+/* ---------------------------------------------------------- part requests */
+
+export type AdminPartRequest = {
+  id: string;
+  name: string;
+  quantity: number;
+  reason: string | null;
+  link: string | null;
+  est_price: number | null;
+  status: "pending" | "approved" | "rejected" | "ordered" | "received";
+  admin_note: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+  member_name: string;
+};
+
+async function memberNames(ids: string[]) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const names = new Map<string, string>();
+  const unique = Array.from(new Set(ids));
+  if (unique.length === 0) return names;
+  const { data } = await supabaseAdmin.from("profiles").select("id, full_name, email").in("id", unique);
+  for (const p of data ?? []) names.set(p.id, p.full_name || p.email || "Member");
+  return names;
+}
+
+export async function fetchPartRequests(): Promise<AdminPartRequest[]> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("part_requests")
+    .select("id, name, quantity, reason, link, est_price, status, admin_note, created_at, reviewed_at, requested_by")
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) throw new Error(error.message);
+  const rows = data ?? [];
+  const names = await memberNames(rows.map((r) => r.requested_by));
+  return rows.map(({ requested_by, ...r }) => ({
+    ...r,
+    status: r.status as AdminPartRequest["status"],
+    member_name: names.get(requested_by) ?? "Member",
+  }));
+}
+
+const REQUEST_MESSAGES: Record<string, (name: string) => string> = {
+  approved: (n) => `Your request for ${n} was approved — the club will source it.`,
+  rejected: (n) => `Your request for ${n} wasn't approved.`,
+  ordered: (n) => `${n} has been ordered.`,
+  received: (n) => `${n} has arrived in the club room.`,
+};
+
+export async function setPartRequestStatus(
+  id: string,
+  status: "approved" | "rejected" | "ordered" | "received",
+  note: string | null,
+) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: req, error } = await supabaseAdmin
+    .from("part_requests")
+    .update({ status, admin_note: note, reviewed_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("requested_by, name")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!req) throw new Error("Request not found");
+
+  const message = REQUEST_MESSAGES[status](req.name);
+  await supabaseAdmin.from("notifications").insert({
+    user_id: req.requested_by,
+    kind: `request_${status}`,
+    title: `Request ${status}: ${req.name}`,
+    body: note ? `${message} Note: ${note}` : message,
+  });
+  return { ok: true };
+}
+
+/* ---------------------------------------------------------------- exports */
+
+/** Flat rows for spreadsheet download. Column order is the order of keys. */
+export async function fetchExportRows(kind: "inventory" | "requests" | "loans") {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  if (kind === "inventory") {
+    const { data, error } = await supabaseAdmin
+      .from("components")
+      .select("name, category, specs, quantity_total, quantity_available, bin_label, borrowable, qr_code, racks(code, name)")
+      .order("name");
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((c) => ({
+      Section: c.racks?.code ?? "",
+      "Section name": c.racks?.name ?? "",
+      Bin: c.bin_label ?? "",
+      Name: c.name,
+      Category: c.category,
+      Specs: c.specs ?? "",
+      Total: c.quantity_total,
+      Available: c.quantity_available,
+      "Out on loan": Math.max(0, c.quantity_total - c.quantity_available),
+      Borrowable: c.borrowable ? "yes" : "room only",
+      "QR code": c.qr_code ?? "",
+    }));
+  }
+
+  if (kind === "requests") {
+    const rows = await fetchPartRequests();
+    return rows.map((r) => ({
+      Requested: r.created_at.slice(0, 10),
+      "Requested by": r.member_name,
+      Part: r.name,
+      Quantity: r.quantity,
+      "Est. price (each)": r.est_price ?? "",
+      "Est. total": r.est_price != null ? Number((r.est_price * r.quantity).toFixed(2)) : "",
+      Link: r.link ?? "",
+      Reason: r.reason ?? "",
+      Status: r.status,
+      "Admin note": r.admin_note ?? "",
+    }));
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("borrow_records")
+    .select("quantity, borrowed_at, due_at, returned_at, purpose, project_name, damage_reported, user_id, components(name, racks(code))")
+    .order("borrowed_at", { ascending: false })
+    .limit(5000);
+  if (error) throw new Error(error.message);
+  const names = await memberNames((data ?? []).map((r) => r.user_id));
+  const now = Date.now();
+  return (data ?? []).map((r) => ({
+    Borrowed: r.borrowed_at.slice(0, 10),
+    Member: names.get(r.user_id) ?? "Member",
+    Part: r.components?.name ?? "",
+    Section: r.components?.racks?.code ?? "",
+    Quantity: r.quantity,
+    Purpose: r.purpose === "project" ? `Project: ${r.project_name ?? ""}` : "Personal",
+    Due: r.due_at.slice(0, 10),
+    Returned: r.returned_at ? r.returned_at.slice(0, 10) : "",
+    Status: r.returned_at
+      ? r.damage_reported
+        ? "returned (damaged)"
+        : "returned"
+      : new Date(r.due_at).getTime() < now
+        ? "OVERDUE"
+        : "out",
+  }));
 }

@@ -4,6 +4,7 @@ import {
   getBorrowLog,
   getInventory,
   getMe,
+  getMyRequests,
   getMySubmissions,
   getNotifications,
 } from "./inventory.functions";
@@ -44,6 +45,17 @@ export const mySubmissionsQuery = () =>
     queryKey: ["my-submissions"],
     queryFn: () => getMySubmissions(),
   });
+
+export const myRequestsQuery = () =>
+  queryOptions({
+    queryKey: ["my-requests"],
+    queryFn: () => getMyRequests(),
+  });
+
+/** "Project: Robocon bot" or "Personal" — how a loan was logged. */
+export function purposeLabel(loan: { purpose: string; project_name: string | null }) {
+  return loan.purpose === "project" ? `Project: ${loan.project_name ?? "—"}` : "Personal";
+}
 
 export function daysUntil(iso: string): number {
   return Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);

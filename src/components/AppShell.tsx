@@ -1,7 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Camera,
   ClipboardList,
   Home,
   Hourglass,
@@ -9,6 +8,7 @@ import {
   LogOut,
   Search,
   ShieldAlert,
+  ShoppingCart,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -18,12 +18,12 @@ import { meQuery } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
 
-type NavTo = "/home" | "/find" | "/my-items" | "/scan" | "/dashboard";
-const NAV: { to: NavTo; label: string; icon: typeof Camera; adminOnly?: boolean }[] = [
+type NavTo = "/home" | "/find" | "/requests" | "/my-items" | "/dashboard";
+const NAV: { to: NavTo; label: string; icon: typeof Home; adminOnly?: boolean }[] = [
   { to: "/home", label: "Home", icon: Home },
   { to: "/find", label: "Browse", icon: Search },
+  { to: "/requests", label: "Requests", icon: ShoppingCart },
   { to: "/my-items", label: "My items", icon: ClipboardList },
-  { to: "/scan", label: "Scan", icon: Camera },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, adminOnly: true },
 ];
 

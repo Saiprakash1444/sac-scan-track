@@ -236,3 +236,39 @@ export const decideSubmission = createServerFn({ method: "POST" })
     const { reviewSubmission } = await import("./admin.server");
     return reviewSubmission(data.id, data.approve, data.note || null);
   });
+
+/* ---------------------------------------------------------- part requests */
+
+export const getPartRequests = createServerFn({ method: "GET" }).handler(async () => {
+  if (!(await isAdminUnlocked())) throw new Error("Admin panel is locked");
+  const { fetchPartRequests } = await import("./admin.server");
+  return fetchPartRequests();
+});
+
+export const updatePartRequest = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        status: z.enum(["approved", "rejected", "ordered", "received"]),
+        note: z.string().trim().max(300).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    if (!(await isAdminUnlocked())) throw new Error("Admin panel is locked");
+    const { setPartRequestStatus } = await import("./admin.server");
+    return setPartRequestStatus(data.id, data.status, data.note || null);
+  });
+
+/* ---------------------------------------------------------------- exports */
+
+export const getExportRows = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z.object({ kind: z.enum(["inventory", "requests", "loans"]) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    if (!(await isAdminUnlocked())) throw new Error("Admin panel is locked");
+    const { fetchExportRows } = await import("./admin.server");
+    return fetchExportRows(data.kind);
+  });

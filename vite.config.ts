@@ -15,5 +15,12 @@ export default defineConfig({
   // Hard-pin the Vercel target for our own CI. Per the preset's own contract, a
   // Lovable build force-overrides preset/output back to Cloudflare, so this is
   // safe to commit while the repo stays git-synced with the Lovable editor.
-  nitro: { preset: "vercel" },
+  nitro: {
+    preset: "vercel",
+    // Daily reminder sweep + Supabase keep-alive (src/routes/api/cron/daily.ts),
+    // 04:00 UTC = 09:30 IST. Vercel reads crons from the Build Output config that
+    // nitro writes. The Lovable wrapper's types only list preset/output/cloudflare,
+    // but the object is passed straight through to nitro, which supports `vercel`.
+    vercel: { config: { crons: [{ path: "/api/cron/daily", schedule: "0 4 * * *" }] } },
+  } as { preset: string },
 });

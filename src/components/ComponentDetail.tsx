@@ -36,7 +36,6 @@ export function StockBadge({ component }: { component: Component }) {
   );
 }
 
-
 export function LocationLine({ component, rack }: { component: Component; rack?: Rack }) {
   return (
     <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
@@ -59,11 +58,16 @@ export function ComponentDetail({
 }) {
   const [quantity, setQuantity] = useState(1);
   const [days, setDays] = useState(7);
+  const [purpose, setPurpose] = useState<"project" | "personal">("project");
+  const [projectName, setProjectName] = useState("");
   const queryClient = useQueryClient();
   const borrow = useServerFn(borrowComponent);
 
   const mutation = useMutation({
-    mutationFn: () => borrow({ data: { componentId: component.id, quantity, days } }),
+    mutationFn: () =>
+      borrow({
+        data: { componentId: component.id, quantity, days, purpose, projectName },
+      }),
     onSuccess: () => {
       toast.success(`${quantity} × ${component.name} logged to your name`);
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
@@ -75,7 +79,6 @@ export function ComponentDetail({
 
   const isMech = component.category === "mech";
   const maxQty = Math.max(1, component.quantity_available);
-
 
   return (
     <div className="panel p-4">
@@ -133,10 +136,44 @@ export function ComponentDetail({
               />
             </div>
           </div>
+          <div className="space-y-1.5">
+            <Label>What's it for?</Label>
+            <div className="grid grid-cols-2 gap-2" role="radiogroup">
+              {(["project", "personal"] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={purpose === value}
+                  onClick={() => setPurpose(value)}
+                  className={
+                    purpose === value
+                      ? "rounded-lg border border-primary bg-primary/10 px-3 py-2 text-sm font-medium text-primary"
+                      : "rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+                  }
+                >
+                  {value === "project" ? "Club project" : "Personal use"}
+                </button>
+              ))}
+            </div>
+            {purpose === "project" ? (
+              <Input
+                aria-label="Project name"
+                placeholder="Project name — e.g. Robocon 2026 bot"
+                value={projectName}
+                maxLength={80}
+                onChange={(e) => setProjectName(e.target.value)}
+              />
+            ) : null}
+          </div>
           <Button
             type="submit"
             className="w-full"
-            disabled={mutation.isPending || (!isMech && component.quantity_available === 0)}
+            disabled={
+              mutation.isPending ||
+              (!isMech && component.quantity_available === 0) ||
+              (purpose === "project" && !projectName.trim())
+            }
           >
             {mutation.isPending ? (
               <Loader2 className="size-4 animate-spin" />
@@ -146,7 +183,6 @@ export function ComponentDetail({
             {!isMech && component.quantity_available === 0 ? "Out of stock" : "Borrow in my name"}
           </Button>
         </form>
-
       ) : (
         <p className="mt-4 rounded-lg border border-border bg-surface-2 p-3 text-sm text-muted-foreground">
           This is a shared bin box — take what you need inside the room, no checkout needed.

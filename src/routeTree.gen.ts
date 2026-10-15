@@ -18,7 +18,9 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedFindRouteImport } from './routes/_authenticated/find'
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
 import { Route as AuthenticatedMyItemsRouteImport } from './routes/_authenticated/my-items'
+import { Route as AuthenticatedRequestsRouteImport } from './routes/_authenticated/requests'
 import { Route as AuthenticatedScanRouteImport } from './routes/_authenticated/scan'
+import { Route as ApiCronDailyRouteImport } from './routes/api/cron/daily'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -64,10 +66,20 @@ const AuthenticatedMyItemsRoute = AuthenticatedMyItemsRouteImport.update({
   path: '/my-items',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedRequestsRoute = AuthenticatedRequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedScanRoute = AuthenticatedScanRouteImport.update({
   id: '/scan',
   path: '/scan',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ApiCronDailyRoute = ApiCronDailyRouteImport.update({
+  id: '/api/cron/daily',
+  path: '/api/cron/daily',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -79,7 +91,9 @@ export interface FileRoutesByFullPath {
   '/find': typeof AuthenticatedFindRoute
   '/home': typeof AuthenticatedHomeRoute
   '/my-items': typeof AuthenticatedMyItemsRoute
+  '/requests': typeof AuthenticatedRequestsRoute
   '/scan': typeof AuthenticatedScanRoute
+  '/api/cron/daily': typeof ApiCronDailyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -90,7 +104,9 @@ export interface FileRoutesByTo {
   '/find': typeof AuthenticatedFindRoute
   '/home': typeof AuthenticatedHomeRoute
   '/my-items': typeof AuthenticatedMyItemsRoute
+  '/requests': typeof AuthenticatedRequestsRoute
   '/scan': typeof AuthenticatedScanRoute
+  '/api/cron/daily': typeof ApiCronDailyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -103,7 +119,9 @@ export interface FileRoutesById {
   '/_authenticated/find': typeof AuthenticatedFindRoute
   '/_authenticated/home': typeof AuthenticatedHomeRoute
   '/_authenticated/my-items': typeof AuthenticatedMyItemsRoute
+  '/_authenticated/requests': typeof AuthenticatedRequestsRoute
   '/_authenticated/scan': typeof AuthenticatedScanRoute
+  '/api/cron/daily': typeof ApiCronDailyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -116,7 +134,9 @@ export interface FileRouteTypes {
     | '/find'
     | '/home'
     | '/my-items'
+    | '/requests'
     | '/scan'
+    | '/api/cron/daily'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -127,7 +147,9 @@ export interface FileRouteTypes {
     | '/find'
     | '/home'
     | '/my-items'
+    | '/requests'
     | '/scan'
+    | '/api/cron/daily'
   id:
     | '__root__'
     | '/'
@@ -139,7 +161,9 @@ export interface FileRouteTypes {
     | '/_authenticated/find'
     | '/_authenticated/home'
     | '/_authenticated/my-items'
+    | '/_authenticated/requests'
     | '/_authenticated/scan'
+    | '/api/cron/daily'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -148,6 +172,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  ApiCronDailyRoute: typeof ApiCronDailyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -215,12 +240,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMyItemsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/requests': {
+      id: '/_authenticated/requests'
+      path: '/requests'
+      fullPath: '/requests'
+      preLoaderRoute: typeof AuthenticatedRequestsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/scan': {
       id: '/_authenticated/scan'
       path: '/scan'
       fullPath: '/scan'
       preLoaderRoute: typeof AuthenticatedScanRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/cron/daily': {
+      id: '/api/cron/daily'
+      path: '/api/cron/daily'
+      fullPath: '/api/cron/daily'
+      preLoaderRoute: typeof ApiCronDailyRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -230,6 +269,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedFindRoute: typeof AuthenticatedFindRoute
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
   AuthenticatedMyItemsRoute: typeof AuthenticatedMyItemsRoute
+  AuthenticatedRequestsRoute: typeof AuthenticatedRequestsRoute
   AuthenticatedScanRoute: typeof AuthenticatedScanRoute
 }
 
@@ -238,6 +278,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedFindRoute: AuthenticatedFindRoute,
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
   AuthenticatedMyItemsRoute: AuthenticatedMyItemsRoute,
+  AuthenticatedRequestsRoute: AuthenticatedRequestsRoute,
   AuthenticatedScanRoute: AuthenticatedScanRoute,
 }
 
@@ -250,6 +291,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  ApiCronDailyRoute: ApiCronDailyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

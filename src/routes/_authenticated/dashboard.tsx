@@ -9,7 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { returnComponent } from "@/lib/inventory.functions";
-import { borrowLogQuery, daysUntil, formatDate, inventoryQuery, meQuery } from "@/lib/queries";
+import {
+  borrowLogQuery,
+  daysUntil,
+  formatDate,
+  inventoryQuery,
+  meQuery,
+  purposeLabel,
+} from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -162,7 +169,7 @@ function DashboardPage() {
                         {r.quantity} × {r.component_name}
                       </span>
                       <span className="text-sm text-muted-foreground">
-                        {r.member_name} · taken {formatDate(r.borrowed_at)}
+                        {r.member_name} · taken {formatDate(r.borrowed_at)} · {purposeLabel(r)}
                       </span>
                     </span>
                     <Badge variant={daysUntil(r.due_at) <= 1 ? "outline" : "secondary"}>

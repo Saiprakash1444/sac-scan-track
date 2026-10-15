@@ -43,6 +43,8 @@ export type Database = {
           extended_count: number
           id: string
           note: string | null
+          project_name: string | null
+          purpose: string
           quantity: number
           reminded_overdue_at: string | null
           reminded_soon_at: string | null
@@ -59,6 +61,8 @@ export type Database = {
           extended_count?: number
           id?: string
           note?: string | null
+          project_name?: string | null
+          purpose?: string
           quantity?: number
           reminded_overdue_at?: string | null
           reminded_soon_at?: string | null
@@ -75,6 +79,8 @@ export type Database = {
           extended_count?: number
           id?: string
           note?: string | null
+          project_name?: string | null
+          purpose?: string
           quantity?: number
           reminded_overdue_at?: string | null
           reminded_soon_at?: string | null
@@ -257,6 +263,48 @@ export type Database = {
           },
         ]
       }
+      part_requests: {
+        Row: {
+          admin_note: string | null
+          created_at: string
+          est_price: number | null
+          id: string
+          link: string | null
+          name: string
+          quantity: number
+          reason: string | null
+          requested_by: string
+          reviewed_at: string | null
+          status: string
+        }
+        Insert: {
+          admin_note?: string | null
+          created_at?: string
+          est_price?: number | null
+          id?: string
+          link?: string | null
+          name: string
+          quantity?: number
+          reason?: string | null
+          requested_by: string
+          reviewed_at?: string | null
+          status?: string
+        }
+        Update: {
+          admin_note?: string | null
+          created_at?: string
+          est_price?: number | null
+          id?: string
+          link?: string | null
+          name?: string
+          quantity?: number
+          reason?: string | null
+          requested_by?: string
+          reviewed_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           approval_status: string
@@ -395,6 +443,8 @@ export type Database = {
           _component_id: string
           _days?: number
           _note?: string
+          _project_name?: string
+          _purpose?: string
           _quantity: number
         }
         Returns: string

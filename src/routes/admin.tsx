@@ -30,7 +30,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MembersPanel } from "@/components/admin/MembersPanel";
 import { CataloguePanel } from "@/components/admin/CataloguePanel";
-import { daysUntil, formatDate } from "@/lib/queries";
+import { DownloadsPanel } from "@/components/admin/DownloadsPanel";
+import { RequestsPanel } from "@/components/admin/RequestsPanel";
+import { daysUntil, formatDate, purposeLabel } from "@/lib/queries";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -214,11 +216,21 @@ function AdminPage() {
       </div>
 
       <Tabs defaultValue="loans" className="mt-8">
-        <TabsList>
+        <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="loans">Loans</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="catalogue">Catalogue</TabsTrigger>
+          <TabsTrigger value="requests">Requests</TabsTrigger>
+          <TabsTrigger value="downloads">Downloads</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="requests" className="mt-6">
+          <RequestsPanel />
+        </TabsContent>
+
+        <TabsContent value="downloads" className="mt-6">
+          <DownloadsPanel />
+        </TabsContent>
 
         <TabsContent value="members" className="mt-6">
           <MembersPanel />
@@ -249,7 +261,7 @@ function AdminPage() {
                     <span className="text-sm text-muted-foreground">
                       {l.member_name}
                       {l.member_email ? ` · ${l.member_email}` : ""} · taken{" "}
-                      {formatDate(l.borrowed_at)}
+                      {formatDate(l.borrowed_at)} · {purposeLabel(l)}
                     </span>
                     <span className="mono-tag mt-0.5 block text-muted-foreground">
                       {l.rack_code ?? "—"}

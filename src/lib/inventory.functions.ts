@@ -36,6 +36,8 @@ export type BorrowRow = {
   extended_count: number;
   damage_reported: boolean;
   damage_note: string | null;
+  purpose: "project" | "personal";
+  project_name: string | null;
   component_name: string;
   bin_label: string | null;
   rack_code: string | null;
@@ -141,6 +143,8 @@ export const borrowComponent = createServerFn({ method: "POST" })
         quantity: z.number().int().min(1).max(100),
         days: z.number().int().min(1).max(90),
         note: z.string().trim().max(200).optional(),
+        purpose: z.enum(["project", "personal"]).default("personal"),
+        projectName: z.string().trim().max(80).optional(),
       })
       .parse(input),
   )
@@ -150,6 +154,8 @@ export const borrowComponent = createServerFn({ method: "POST" })
       _quantity: data.quantity,
       _days: data.days,
       _note: data.note ?? undefined,
+      _purpose: data.purpose,
+      _project_name: data.purpose === "project" ? data.projectName : undefined,
     });
     if (error) throw new Error(error.message);
     return { recordId };
@@ -228,6 +234,8 @@ type RawBorrow = {
   extended_count: number;
   damage_reported: boolean;
   damage_note: string | null;
+  purpose: string;
+  project_name: string | null;
   components: {
     name: string;
     bin_label: string | null;
@@ -236,7 +244,7 @@ type RawBorrow = {
 };
 
 const BORROW_SELECT =
-  "id, component_id, user_id, quantity, borrowed_at, due_at, returned_at, note, extended_count, damage_reported, damage_note, components(name, bin_label, racks(code))";
+  "id, component_id, user_id, quantity, borrowed_at, due_at, returned_at, note, extended_count, damage_reported, damage_note, purpose, project_name, components(name, bin_label, racks(code))";
 
 /**
  * Borrow log. RLS already limits members to their own rows; `scope: "all"`
@@ -291,6 +299,8 @@ export const getBorrowLog = createServerFn({ method: "GET" })
       extended_count: r.extended_count,
       damage_reported: r.damage_reported,
       damage_note: r.damage_note,
+      purpose: r.purpose === "project" ? "project" : "personal",
+      project_name: r.project_name,
       component_name: r.components?.name ?? "Unknown component",
       bin_label: r.components?.bin_label ?? null,
       rack_code: r.components?.racks?.code ?? null,
@@ -386,4 +396,65 @@ export const getMySubmissions = createServerFn({ method: "GET" })
       .limit(50);
     if (error) throw new Error(error.message);
     return (data ?? []) as SubmissionRow[];
+  });
+
+/* ---------------------------------------------------------- part requests */
+
+export type PartRequestStatus = "pending" | "approved" | "rejected" | "ordered" | "received";
+
+export type PartRequestRow = {
+  id: string;
+  name: string;
+  quantity: number;
+  reason: string | null;
+  link: string | null;
+  est_price: number | null;
+  status: PartRequestStatus;
+  admin_note: string | null;
+  created_at: string;
+};
+
+/** Ask the admins to buy a part. Optional shop link and rough price help them decide. */
+export const createPartRequest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        name: z.string().trim().min(1).max(120),
+        quantity: z.number().int().min(1).max(100000),
+        reason: z.string().trim().max(500).optional(),
+        link: z
+          .string()
+          .trim()
+          .max(500)
+          .refine((v) => !v || /^https?:\/\//i.test(v), "Link must start with http:// or https://")
+          .optional(),
+        estPrice: z.number().min(0).max(10_000_000).nullable().default(null),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("part_requests").insert({
+      requested_by: context.userId,
+      name: data.name,
+      quantity: data.quantity,
+      reason: data.reason || null,
+      link: data.link || null,
+      est_price: data.estPrice,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const getMyRequests = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("part_requests")
+      .select("id, name, quantity, reason, link, est_price, status, admin_note, created_at")
+      .eq("requested_by", context.userId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as PartRequestRow[];
   });
