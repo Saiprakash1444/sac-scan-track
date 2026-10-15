@@ -430,3 +430,118 @@ export async function dismissUnknownScan(id: string) {
   if (error) throw new Error(error.message);
   return { ok: true };
 }
+
+/* ------------------------------------------------------- member additions */
+
+export type AdminSubmission = {
+  id: string;
+  name: string;
+  category: string;
+  specs: string | null;
+  quantity: number;
+  rack_id: string | null;
+  bin_label: string | null;
+  note: string | null;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+  member_name: string;
+};
+
+export async function fetchAdditions() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const [setting, pending] = await Promise.all([
+    supabaseAdmin.from("app_settings").select("value").eq("key", "member_additions").maybeSingle(),
+    supabaseAdmin
+      .from("component_submissions")
+      .select("id, name, category, specs, quantity, rack_id, bin_label, note, status, created_at, submitted_by")
+      .eq("status", "pending")
+      .order("created_at")
+      .limit(200),
+  ]);
+  if (pending.error) throw new Error(pending.error.message);
+
+  const rows = pending.data ?? [];
+  const ids = Array.from(new Set(rows.map((r) => r.submitted_by)));
+  const names = new Map<string, string>();
+  if (ids.length > 0) {
+    const { data: profiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", ids);
+    for (const p of profiles ?? []) names.set(p.id, p.full_name || p.email || "Member");
+  }
+
+  return {
+    mode: (setting.data?.value === "direct" ? "direct" : "approval") as "direct" | "approval",
+    pending: rows.map<AdminSubmission>(({ submitted_by, ...r }) => ({
+      ...r,
+      status: r.status as AdminSubmission["status"],
+      member_name: names.get(submitted_by) ?? "Member",
+    })),
+  };
+}
+
+export async function setAdditionsMode(mode: "direct" | "approval") {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { error } = await supabaseAdmin
+    .from("app_settings")
+    .upsert({ key: "member_additions", value: mode, updated_at: new Date().toISOString() });
+  if (error) throw new Error(error.message);
+  return { mode };
+}
+
+/** Approve turns the submission into a catalogue part; either way the member is told. */
+export async function reviewSubmission(id: string, approve: boolean, note: string | null) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: sub, error } = await supabaseAdmin
+    .from("component_submissions")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!sub) throw new Error("Submission not found");
+  if (sub.status !== "pending") throw new Error("This has already been reviewed");
+
+  let componentId: string | null = null;
+  if (approve) {
+    const { data: created, error: insertError } = await supabaseAdmin
+      .from("components")
+      .insert({
+        name: sub.name,
+        category: sub.category,
+        specs: sub.specs,
+        quantity_total: sub.quantity,
+        quantity_available: sub.quantity,
+        rack_id: sub.rack_id,
+        bin_label: sub.bin_label,
+      })
+      .select("id")
+      .single();
+    if (insertError) throw new Error(insertError.message);
+    componentId = created.id;
+  }
+
+  const { error: updateError } = await supabaseAdmin
+    .from("component_submissions")
+    .update({
+      status: approve ? "approved" : "rejected",
+      component_id: componentId,
+      reviewed_at: new Date().toISOString(),
+      review_note: note,
+    })
+    .eq("id", id);
+  if (updateError) throw new Error(updateError.message);
+
+  await supabaseAdmin.from("notifications").insert({
+    user_id: sub.submitted_by,
+    kind: approve ? "submission_approved" : "submission_rejected",
+    title: approve ? `Added to the catalogue: ${sub.name}` : `Not added: ${sub.name}`,
+    body: approve
+      ? `${sub.quantity} × ${sub.name} is now in the catalogue. Thanks for adding it.`
+      : note
+        ? `An admin didn't add ${sub.name}: ${note}`
+        : `An admin didn't add ${sub.name} to the catalogue.`,
+  });
+
+  return { ok: true, componentId };
+}

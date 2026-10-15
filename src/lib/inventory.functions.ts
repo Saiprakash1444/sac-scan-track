@@ -313,3 +313,77 @@ export const lookupByCode = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { componentId: row?.id ?? null };
   });
+
+/* ------------------------------------------------------- member additions */
+
+export type AdditionsMode = "approval" | "direct";
+
+export type SubmissionRow = {
+  id: string;
+  name: string;
+  quantity: number;
+  rack_id: string | null;
+  bin_label: string | null;
+  status: "pending" | "approved" | "rejected";
+  review_note: string | null;
+  created_at: string;
+};
+
+/** Whether member additions go live straight away or wait for an admin. */
+export const getAdditionsMode = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data } = await context.supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "member_additions")
+      .maybeSingle();
+    return (data?.value === "direct" ? "direct" : "approval") as AdditionsMode;
+  });
+
+/**
+ * Member adds a part. submit_component() decides, from the admin setting,
+ * whether it lands in the catalogue now or in the review queue.
+ */
+export const submitComponent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        name: z.string().trim().min(1).max(120),
+        quantity: z.number().int().min(0).max(100000),
+        rackId: uuid.nullable().default(null),
+        binLabel: z.string().trim().max(40).optional(),
+        category: z.string().trim().max(60).optional(),
+        specs: z.string().trim().max(400).optional(),
+        note: z.string().trim().max(300).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc("submit_component", {
+      _name: data.name,
+      _quantity: data.quantity,
+      _rack_id: data.rackId ?? undefined,
+      _bin_label: data.binLabel || undefined,
+      _category: data.category || undefined,
+      _specs: data.specs || undefined,
+      _note: data.note || undefined,
+    });
+    if (error) throw new Error(error.message);
+    const status = (result as { status?: string } | null)?.status;
+    return { status: status === "approved" ? ("approved" as const) : ("pending" as const) };
+  });
+
+export const getMySubmissions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("component_submissions")
+      .select("id, name, quantity, rack_id, bin_label, status, review_note, created_at")
+      .eq("submitted_by", context.userId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as SubmissionRow[];
+  });

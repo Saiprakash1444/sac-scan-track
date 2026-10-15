@@ -1,5 +1,12 @@
 import { queryOptions } from "@tanstack/react-query";
-import { getBorrowLog, getInventory, getMe, getNotifications } from "./inventory.functions";
+import {
+  getAdditionsMode,
+  getBorrowLog,
+  getInventory,
+  getMe,
+  getMySubmissions,
+  getNotifications,
+} from "./inventory.functions";
 
 export const inventoryQuery = () =>
   queryOptions({
@@ -24,6 +31,18 @@ export const notificationsQuery = () =>
     queryKey: ["notifications"],
     queryFn: () => getNotifications(),
     refetchInterval: 5 * 60 * 1000,
+  });
+
+export const additionsModeQuery = () =>
+  queryOptions({
+    queryKey: ["additions-mode"],
+    queryFn: () => getAdditionsMode(),
+  });
+
+export const mySubmissionsQuery = () =>
+  queryOptions({
+    queryKey: ["my-submissions"],
+    queryFn: () => getMySubmissions(),
   });
 
 export function daysUntil(iso: string): number {

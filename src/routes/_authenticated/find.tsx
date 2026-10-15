@@ -2,9 +2,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { z } from "zod";
-import { Boxes, ChevronRight, Search } from "lucide-react";
+import { Boxes, ChevronRight, Plus, Search } from "lucide-react";
 
+import { AddPartDialog } from "@/components/AddPartDialog";
 import { AppShell } from "@/components/AppShell";
+import { Button } from "@/components/ui/button";
 import { ComponentDetail, LocationLine, StockBadge } from "@/components/ComponentDetail";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -68,7 +70,22 @@ function FindPage() {
   const rackItems = components.filter((c) => c.rack_id === rackId);
 
   return (
-    <AppShell title="Browse" subtitle="Search by name, or open a section to see what's inside.">
+    <AppShell
+      title="Browse"
+      subtitle="Search by name, or open a section to see what's inside."
+      action={
+        <AddPartDialog
+          racks={racks}
+          defaultRackId={rackId}
+          trigger={
+            <Button size="sm" variant="secondary">
+              <Plus className="size-4" />
+              Add a part
+            </Button>
+          }
+        />
+      }
+    >
       <Tabs
         value={tab}
         onValueChange={(v) =>

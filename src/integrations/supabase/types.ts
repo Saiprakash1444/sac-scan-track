@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       borrow_records: {
         Row: {
           borrowed_at: string
@@ -69,6 +87,72 @@ export type Database = {
             columns: ["component_id"]
             isOneToOne: false
             referencedRelation: "components"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      component_submissions: {
+        Row: {
+          bin_label: string | null
+          category: string
+          component_id: string | null
+          created_at: string
+          id: string
+          name: string
+          note: string | null
+          quantity: number
+          rack_id: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          specs: string | null
+          status: string
+          submitted_by: string
+        }
+        Insert: {
+          bin_label?: string | null
+          category?: string
+          component_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          note?: string | null
+          quantity: number
+          rack_id?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          specs?: string | null
+          status?: string
+          submitted_by: string
+        }
+        Update: {
+          bin_label?: string | null
+          category?: string
+          component_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          note?: string | null
+          quantity?: number
+          rack_id?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          specs?: string | null
+          status?: string
+          submitted_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "component_submissions_component_id_fkey"
+            columns: ["component_id"]
+            isOneToOne: false
+            referencedRelation: "components"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "component_submissions_rack_id_fkey"
+            columns: ["rack_id"]
+            isOneToOne: false
+            referencedRelation: "racks"
             referencedColumns: ["id"]
           },
         ]
@@ -331,6 +415,18 @@ export type Database = {
       return_component: {
         Args: { _damage_note?: string; _damaged?: boolean; _record_id: string }
         Returns: undefined
+      }
+      submit_component: {
+        Args: {
+          _bin_label?: string
+          _category?: string
+          _name: string
+          _note?: string
+          _quantity: number
+          _rack_id?: string
+          _specs?: string
+        }
+        Returns: Json
       }
     }
     Enums: {

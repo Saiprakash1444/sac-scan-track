@@ -22,7 +22,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { extendBorrow, returnComponent } from "@/lib/inventory.functions";
-import { borrowLogQuery, daysUntil, formatDate } from "@/lib/queries";
+import { borrowLogQuery, daysUntil, formatDate, mySubmissionsQuery } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/my-items")({
   head: () => ({
@@ -111,6 +111,7 @@ function ExtendDialog({
 
 function MyItemsPage() {
   const log = useQuery(borrowLogQuery("mine"));
+  const submissions = useQuery(mySubmissionsQuery());
   const queryClient = useQueryClient();
   const doReturn = useServerFn(returnComponent);
 
@@ -245,6 +246,47 @@ function MyItemsPage() {
                     </div>
                     {r.damage_note ? (
                       <p className="mt-1 text-xs text-muted-foreground">{r.damage_note}</p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {(submissions.data ?? []).length > 0 ? (
+            <section className="space-y-2">
+              <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Parts you've added
+              </h2>
+              <ul className="space-y-2">
+                {(submissions.data ?? []).map((s) => (
+                  <li key={s.id} className="panel p-3 text-sm">
+                    <div className="flex items-center gap-3">
+                      <span className="min-w-0 flex-1 truncate">
+                        {s.quantity} × {s.name}
+                      </span>
+                      <Badge
+                        variant={s.status === "rejected" ? "destructive" : "outline"}
+                        className={
+                          s.status === "approved"
+                            ? "text-success"
+                            : s.status === "pending"
+                              ? "text-warning"
+                              : undefined
+                        }
+                      >
+                        {s.status === "approved"
+                          ? "In catalogue"
+                          : s.status === "pending"
+                            ? "Waiting for admin"
+                            : "Not added"}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDate(s.created_at)}
+                      </span>
+                    </div>
+                    {s.status === "rejected" && s.review_note ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{s.review_note}</p>
                     ) : null}
                   </li>
                 ))}

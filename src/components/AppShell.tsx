@@ -30,10 +30,13 @@ const NAV: { to: NavTo; label: string; icon: typeof Camera; adminOnly?: boolean 
 export function AppShell({
   title,
   subtitle,
+  action,
   children,
 }: {
   title: string;
   subtitle?: string;
+  /** Optional button shown beside the page title. */
+  action?: ReactNode;
   children: ReactNode;
 }) {
   const me = useQuery(meQuery());
@@ -133,8 +136,13 @@ export function AppShell({
         </main>
       ) : (
         <main className="mx-auto max-w-5xl px-4 pb-28 pt-5 md:pb-12">
-          <h1 className="text-2xl font-bold">{title}</h1>
-          {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold">{title}</h1>
+              {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
+            </div>
+            {action}
+          </div>
           <div className="mt-5">{children}</div>
         </main>
       )}

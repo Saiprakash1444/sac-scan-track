@@ -202,3 +202,37 @@ export const dismissScan = createServerFn({ method: "POST" })
     const { dismissUnknownScan } = await import("./admin.server");
     return dismissUnknownScan(data.id);
   });
+
+/* ------------------------------------------------------- member additions */
+
+export const getAdditions = createServerFn({ method: "GET" }).handler(async () => {
+  if (!(await isAdminUnlocked())) throw new Error("Admin panel is locked");
+  const { fetchAdditions } = await import("./admin.server");
+  return fetchAdditions();
+});
+
+export const saveAdditionsMode = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z.object({ mode: z.enum(["direct", "approval"]) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    if (!(await isAdminUnlocked())) throw new Error("Admin panel is locked");
+    const { setAdditionsMode } = await import("./admin.server");
+    return setAdditionsMode(data.mode);
+  });
+
+export const decideSubmission = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        approve: z.boolean(),
+        note: z.string().trim().max(300).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    if (!(await isAdminUnlocked())) throw new Error("Admin panel is locked");
+    const { reviewSubmission } = await import("./admin.server");
+    return reviewSubmission(data.id, data.approve, data.note || null);
+  });

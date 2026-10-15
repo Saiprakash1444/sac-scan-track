@@ -29,6 +29,7 @@ import {
   saveRack,
 } from "@/lib/admin.functions";
 import { sectionTitle } from "@/lib/queries";
+import { MemberAdditionsPanel } from "./MemberAdditionsPanel";
 
 const catalogueKey = ["admin-catalogue"] as const;
 
@@ -643,6 +644,8 @@ export function CataloguePanel() {
 
   return (
     <div className="space-y-8">
+      <MemberAdditionsPanel sections={sections} onCatalogueChanged={refresh} />
+
       {unknownScans.length > 0 ? (
         <section className="space-y-2">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-accent">
