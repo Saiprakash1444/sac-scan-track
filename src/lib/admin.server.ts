@@ -334,7 +334,26 @@ export type ComponentInput = {
 
 export async function upsertComponent(id: string | null, input: ComponentInput) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const row = { ...input, qr_code: input.qr_code ? input.qr_code.toUpperCase() : null };
+  const row: ComponentInput & { count_pending?: boolean; counted_at?: string } = {
+    ...input,
+    qr_code: input.qr_code ? input.qr_code.toUpperCase() : null,
+  };
+  if (id) {
+    // An admin typing new quantities is a count; clear the pending flag then.
+    const { data: before } = await supabaseAdmin
+      .from("components")
+      .select("quantity_total, quantity_available")
+      .eq("id", id)
+      .maybeSingle();
+    if (
+      before &&
+      (before.quantity_total !== input.quantity_total ||
+        before.quantity_available !== input.quantity_available)
+    ) {
+      row.count_pending = false;
+      row.counted_at = new Date().toISOString();
+    }
+  }
   const { data, error } = id
     ? await supabaseAdmin.from("components").update(row).eq("id", id).select("id").maybeSingle()
     : await supabaseAdmin.from("components").insert(row).select("id").maybeSingle();
@@ -402,7 +421,7 @@ export async function fetchCatalogue() {
     supabaseAdmin
       .from("components")
       .select(
-        "id, name, category, specs, quantity_total, quantity_available, rack_id, bin_label, qr_code, keywords, borrowable",
+        "id, name, category, specs, quantity_total, quantity_available, rack_id, bin_label, qr_code, keywords, borrowable, count_pending",
       )
       .order("name"),
     supabaseAdmin
@@ -636,7 +655,9 @@ export async function fetchExportRows(kind: "inventory" | "requests" | "loans") 
   if (kind === "inventory") {
     const { data, error } = await supabaseAdmin
       .from("components")
-      .select("name, category, specs, quantity_total, quantity_available, bin_label, borrowable, qr_code, racks(code, name)")
+      .select(
+        "name, category, specs, quantity_total, quantity_available, bin_label, borrowable, qr_code, count_pending, racks(code, name)",
+      )
       .order("name");
     if (error) throw new Error(error.message);
     return (data ?? []).map((c) => ({
@@ -650,6 +671,7 @@ export async function fetchExportRows(kind: "inventory" | "requests" | "loans") 
       Available: c.quantity_available,
       "Out on loan": Math.max(0, c.quantity_total - c.quantity_available),
       Borrowable: c.borrowable ? "yes" : "room only",
+      Count: c.count_pending ? "pending" : "counted",
       "QR code": c.qr_code ?? "",
     }));
   }
@@ -695,4 +717,34 @@ export async function fetchExportRows(kind: "inventory" | "requests" | "loans") 
         ? "OVERDUE"
         : "out",
   }));
+}
+
+/* --------------------------------------------------------- stock counting */
+
+export async function fetchCounting() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const [setting, total, pending] = await Promise.all([
+    supabaseAdmin.from("app_settings").select("value").eq("key", "member_counting").maybeSingle(),
+    supabaseAdmin.from("components").select("id", { count: "exact", head: true }),
+    supabaseAdmin
+      .from("components")
+      .select("id", { count: "exact", head: true })
+      .eq("count_pending", true),
+  ]);
+  if (total.error) throw new Error(total.error.message);
+  if (pending.error) throw new Error(pending.error.message);
+  return {
+    mode: (setting.data?.value === "open" ? "open" : "locked") as "open" | "locked",
+    total: total.count ?? 0,
+    pending: pending.count ?? 0,
+  };
+}
+
+export async function setCountingMode(mode: "open" | "locked") {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { error } = await supabaseAdmin
+    .from("app_settings")
+    .upsert({ key: "member_counting", value: mode, updated_at: new Date().toISOString() });
+  if (error) throw new Error(error.message);
+  return { mode };
 }

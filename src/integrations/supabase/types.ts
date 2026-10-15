@@ -168,6 +168,9 @@ export type Database = {
           bin_label: string | null
           borrowable: boolean
           category: string
+          count_pending: boolean
+          counted_at: string | null
+          counted_by: string | null
           created_at: string
           id: string
           image_url: string | null
@@ -184,6 +187,9 @@ export type Database = {
           bin_label?: string | null
           borrowable?: boolean
           category?: string
+          count_pending?: boolean
+          counted_at?: string | null
+          counted_by?: string | null
           created_at?: string
           id?: string
           image_url?: string | null
@@ -200,6 +206,9 @@ export type Database = {
           bin_label?: string | null
           borrowable?: boolean
           category?: string
+          count_pending?: boolean
+          counted_at?: string | null
+          counted_by?: string | null
           created_at?: string
           id?: string
           image_url?: string | null
@@ -476,6 +485,10 @@ export type Database = {
           _rack_id?: string
           _specs?: string
         }
+        Returns: Json
+      }
+      update_component_count: {
+        Args: { _component_id: string; _on_shelf: number }
         Returns: Json
       }
     }

@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import {
   getAdditionsMode,
+  getCountingMode,
   getBorrowLog,
   getInventory,
   getMe,
@@ -46,11 +47,24 @@ export const mySubmissionsQuery = () =>
     queryFn: () => getMySubmissions(),
   });
 
+export const countingModeQuery = () =>
+  queryOptions({
+    queryKey: ["counting-mode"],
+    queryFn: () => getCountingMode(),
+    staleTime: 60_000,
+  });
+
 export const myRequestsQuery = () =>
   queryOptions({
     queryKey: ["my-requests"],
     queryFn: () => getMyRequests(),
   });
+
+/** Spreadsheet imports store the shelf row ("Row 2", "Ground"); older parts store a bin code. */
+export function binText(bin: string | null) {
+  if (!bin) return "";
+  return /^(row|ground)/i.test(bin) ? bin : `bin ${bin}`;
+}
 
 /** "Project: Robocon bot" or "Personal" — how a loan was logged. */
 export function purposeLabel(loan: { purpose: string; project_name: string | null }) {

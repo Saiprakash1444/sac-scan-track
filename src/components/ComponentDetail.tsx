@@ -9,12 +9,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { sectionTitle } from "@/lib/queries";
+import { binText, sectionTitle } from "@/lib/queries";
 
 export function StockBadge({ component }: { component: Component }) {
   const { quantity_available: avail, quantity_total: total } = component;
   if (!component.borrowable) {
     return <Badge variant="secondary">Room use only</Badge>;
+  }
+  if (component.count_pending) {
+    return (
+      <Badge variant="outline" className="text-muted-foreground">
+        Count pending
+      </Badge>
+    );
   }
   if (component.category === "mech") {
     return (
@@ -42,7 +49,9 @@ export function LocationLine({ component, rack }: { component: Component; rack?:
       <MapPin className="size-3.5 text-primary" />
       <span className="font-medium text-foreground">{rack?.code ?? "Unassigned"}</span>
       {rack ? <span>· {sectionTitle(rack.name)}</span> : null}
-      {component.bin_label ? <span className="mono-tag">bin {component.bin_label}</span> : null}
+      {component.bin_label ? (
+        <span className="mono-tag">{binText(component.bin_label)}</span>
+      ) : null}
     </p>
   );
 }

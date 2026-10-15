@@ -11,7 +11,9 @@ import { ComponentDetail, LocationLine, StockBadge } from "@/components/Componen
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { inventoryQuery, sectionTitle } from "@/lib/queries";
+import { CountInput } from "@/components/CountInput";
+import type { Component } from "@/lib/inventory.functions";
+import { binText, countingModeQuery, inventoryQuery, meQuery, sectionTitle } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/find")({
   validateSearch: z.object({
@@ -48,7 +50,7 @@ function FindPage() {
   const setRackId = (id: string | null) =>
     navigate({ search: { tab: "sections", section: id ?? undefined } });
 
-  const components = inventory.data?.components ?? [];
+  const components = useMemo(() => inventory.data?.components ?? [], [inventory.data]);
   const racks = inventory.data?.racks ?? [];
 
   const results = useMemo(() => {
@@ -68,6 +70,20 @@ function FindPage() {
   const selectedRack = racks.find((r) => r.id === selected?.rack_id);
   const openRack = racks.find((r) => r.id === rackId);
   const rackItems = components.filter((c) => c.rack_id === rackId);
+  const pendingInRack = rackItems.filter((c) => c.count_pending).length;
+  const rackGroups = useMemo(() => {
+    const groups = new Map<string, Component[]>();
+    for (const c of components.filter((x) => x.rack_id === rackId)) {
+      const key = c.bin_label ? binText(c.bin_label).replace(/^bin /, "Bin ") : "Other";
+      groups.set(key, [...(groups.get(key) ?? []), c]);
+    }
+    return [...groups.entries()].sort(([a], [b]) =>
+      a.localeCompare(b, undefined, { numeric: true }),
+    );
+  }, [components, rackId]);
+  const counting = useQuery(countingModeQuery());
+  const me = useQuery(meQuery());
+  const canCount = counting.data === "open" || me.data?.isAdmin === true;
 
   return (
     <AppShell
@@ -140,10 +156,7 @@ function FindPage() {
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium">{c.name}</span>
-                      <LocationLine
-                        component={c}
-                        rack={racks.find((r) => r.id === c.rack_id)}
-                      />
+                      <LocationLine component={c} rack={racks.find((r) => r.id === c.rack_id)} />
                     </span>
                     <StockBadge component={c} />
                     <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
@@ -152,9 +165,7 @@ function FindPage() {
               ))}
               {results.length === 0 ? (
                 <li className="panel space-y-2 p-4 text-sm text-muted-foreground">
-                  <p>
-                    Nothing matches "{term}". Try a broader word like "motor" or "sensor".
-                  </p>
+                  <p>Nothing matches "{term}". Try a broader word like "motor" or "sensor".</p>
                   <p>
                     Not in the room?{" "}
                     <Link
@@ -187,25 +198,59 @@ function FindPage() {
                   <p className="mt-1 text-sm text-muted-foreground">{openRack.location_note}</p>
                 ) : null}
               </div>
-              <ul className="space-y-2">
-                {rackItems.map((c) => (
-                  <li key={c.id} className="panel flex items-center gap-3 p-3">
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{c.name}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {c.bin_label ? `bin ${c.bin_label} · ` : ""}
-                        {c.specs ?? c.category}
-                      </span>
-                    </span>
-                    <StockBadge component={c} />
-                  </li>
-                ))}
-                {rackItems.length === 0 ? (
-                  <li className="panel p-4 text-sm text-muted-foreground">
-                    Nothing catalogued in this section yet.
-                  </li>
-                ) : null}
-              </ul>
+              {canCount ? (
+                <p className="rounded-lg border border-primary/40 bg-primary/10 p-3 text-sm">
+                  <span className="font-medium text-primary">Stock count is open.</span> Enter how
+                  many of each item are on the shelf right now and tap ✓.
+                  {pendingInRack > 0
+                    ? ` ${pendingInRack} still to count here.`
+                    : " All counted here."}
+                </p>
+              ) : null}
+              {rackItems.length === 0 ? (
+                <p className="panel p-4 text-sm text-muted-foreground">
+                  Nothing catalogued in this section yet.
+                </p>
+              ) : null}
+              {rackGroups.map(([row, items]) => (
+                <section key={row} className="space-y-2">
+                  <h3 className="pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {row}
+                  </h3>
+                  <ul className="space-y-2">
+                    {items.map((c) =>
+                      c.id === selectedId ? (
+                        <li key={c.id}>
+                          <ComponentDetail
+                            component={c}
+                            rack={openRack}
+                            onDone={() => setSelectedId(null)}
+                          />
+                        </li>
+                      ) : (
+                        <li
+                          key={c.id}
+                          className="panel flex flex-wrap items-center gap-3 p-3 transition-colors hover:border-primary/50"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setSelectedId(c.id)}
+                            className="min-w-0 flex-1 text-left"
+                          >
+                            <span className="block truncate font-medium">{c.name}</span>
+                            {c.specs ? (
+                              <span className="block truncate text-sm text-muted-foreground">
+                                {c.specs}
+                              </span>
+                            ) : null}
+                          </button>
+                          {canCount ? <CountInput component={c} /> : <StockBadge component={c} />}
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                </section>
+              ))}
             </div>
           ) : (
             <ul className="grid gap-2 sm:grid-cols-2">
@@ -220,9 +265,7 @@ function FindPage() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="mono-tag block text-primary">{r.code}</span>
-                      <span className="block truncate font-medium">
-                        {sectionTitle(r.name)}
-                      </span>
+                      <span className="block truncate font-medium">{sectionTitle(r.name)}</span>
                       <span className="text-xs text-muted-foreground">
                         {components.filter((c) => c.rack_id === r.id).length} kinds of parts
                       </span>

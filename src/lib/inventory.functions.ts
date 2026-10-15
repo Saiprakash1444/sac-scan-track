@@ -22,6 +22,8 @@ export type Component = {
   qr_code: string | null;
   keywords: string[];
   borrowable: boolean;
+  /** True until someone records a real count (imported parts start at 1). */
+  count_pending: boolean;
 };
 
 export type BorrowRow = {
@@ -68,7 +70,7 @@ export const getInventory = createServerFn({ method: "GET" })
       context.supabase
         .from("components")
         .select(
-          "id, name, category, specs, quantity_total, quantity_available, rack_id, bin_label, qr_code, keywords, borrowable",
+          "id, name, category, specs, quantity_total, quantity_available, rack_id, bin_label, qr_code, keywords, borrowable, count_pending",
         )
         .order("name"),
     ]);
@@ -457,4 +459,33 @@ export const getMyRequests = createServerFn({ method: "GET" })
       .limit(100);
     if (error) throw new Error(error.message);
     return (data ?? []) as PartRequestRow[];
+  });
+
+/* --------------------------------------------------------- stock counting */
+
+/** "open" while an admin lets members record counts; "locked" otherwise. */
+export const getCountingMode = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data } = await context.supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "member_counting")
+      .maybeSingle();
+    return data?.value === "open" ? ("open" as const) : ("locked" as const);
+  });
+
+/** Record how many units are physically on the shelf right now. */
+export const updateComponentCount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ componentId: uuid, onShelf: z.number().int().min(0).max(100000) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc("update_component_count", {
+      _component_id: data.componentId,
+      _on_shelf: data.onShelf,
+    });
+    if (error) throw new Error(error.message);
+    return result as { available: number; total: number; out: number };
   });

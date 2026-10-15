@@ -30,6 +30,7 @@ import {
 } from "@/lib/admin.functions";
 import { sectionTitle } from "@/lib/queries";
 import { MemberAdditionsPanel } from "./MemberAdditionsPanel";
+import { StockCountPanel } from "./StockCountPanel";
 
 const catalogueKey = ["admin-catalogue"] as const;
 
@@ -46,9 +47,13 @@ type Row = {
   qr_code: string | null;
   keywords: string[];
   borrowable: boolean;
+  count_pending?: boolean;
 };
 
-type Draft = Omit<Row, "id" | "keywords"> & { id: string | null; keywords: string };
+type Draft = Omit<Row, "id" | "keywords" | "count_pending"> & {
+  id: string | null;
+  keywords: string;
+};
 
 function blankDraft(): Draft {
   return {
@@ -636,7 +641,13 @@ export function CataloguePanel() {
   const needle = filter.trim().toLowerCase();
   const visible = components.filter((c) => {
     if (sectionFilter === "none" && c.rack_id) return false;
-    if (sectionFilter !== "all" && sectionFilter !== "none" && c.rack_id !== sectionFilter) {
+    if (sectionFilter === "pending" && !c.count_pending) return false;
+    if (
+      sectionFilter !== "all" &&
+      sectionFilter !== "none" &&
+      sectionFilter !== "pending" &&
+      c.rack_id !== sectionFilter
+    ) {
       return false;
     }
     return !needle || `${c.name} ${c.category} ${c.specs ?? ""}`.toLowerCase().includes(needle);
@@ -644,6 +655,8 @@ export function CataloguePanel() {
 
   return (
     <div className="space-y-8">
+      <StockCountPanel onShowPending={() => setSectionFilter("pending")} />
+
       <MemberAdditionsPanel sections={sections} onCatalogueChanged={refresh} />
 
       {unknownScans.length > 0 ? (
@@ -787,7 +800,7 @@ export function CataloguePanel() {
             racks={sections}
             initial={{
               ...blankDraft(),
-              rack_id: sectionFilter !== "all" && sectionFilter !== "none" ? sectionFilter : null,
+              rack_id: ["all", "none", "pending"].includes(sectionFilter) ? null : sectionFilter,
             }}
             onSaved={refresh}
             trigger={
@@ -817,6 +830,7 @@ export function CataloguePanel() {
               </option>
             ))}
             <option value="none">Not in a section</option>
+            <option value="pending">Count pending</option>
           </select>
         </div>
 
@@ -832,6 +846,7 @@ export function CataloguePanel() {
                     {c.bin_label ? ` · bin ${c.bin_label}` : ""} · {c.category}
                   </span>
                 </span>
+                {c.count_pending ? <Badge variant="outline">count pending</Badge> : null}
                 {!c.borrowable ? <Badge variant="outline">room only</Badge> : null}
                 <Badge variant="secondary">
                   {c.quantity_available}/{c.quantity_total}

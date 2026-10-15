@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   borrowLogQuery,
+  countingModeQuery,
   daysUntil,
   formatDate,
   inventoryQuery,
@@ -38,9 +39,11 @@ function HomePage() {
   const me = useQuery(meQuery());
   const inventory = useQuery(inventoryQuery());
   const loans = useQuery(borrowLogQuery("mine", true));
+  const counting = useQuery(countingModeQuery());
   const [term, setTerm] = useState("");
 
   const racks = inventory.data?.racks ?? [];
+  const toCount = (inventory.data?.components ?? []).filter((c) => c.count_pending).length;
   const firstName = (me.data?.profile?.full_name ?? "").split(" ")[0];
 
   function search(event: React.FormEvent) {
@@ -88,6 +91,20 @@ function HomePage() {
             <span className="text-sm font-medium leading-tight">Request a part</span>
           </Link>
         </div>
+
+        {counting.data === "open" && toCount > 0 ? (
+          <Link
+            to="/find"
+            search={{ tab: "sections" }}
+            className="flex items-center justify-between gap-3 rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 text-sm"
+          >
+            <span>
+              <span className="font-medium text-primary">Stock count is on.</span> {toCount} items
+              still need counting — pick a rack and help out.
+            </span>
+            <span className="shrink-0 text-primary">Count →</span>
+          </Link>
+        ) : null}
 
         <MyLoans loading={loans.isLoading} loans={loans.data ?? []} />
 

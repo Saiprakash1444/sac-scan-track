@@ -272,3 +272,19 @@ export const getExportRows = createServerFn({ method: "POST" })
     const { fetchExportRows } = await import("./admin.server");
     return fetchExportRows(data.kind);
   });
+
+/* --------------------------------------------------------- stock counting */
+
+export const getCounting = createServerFn({ method: "GET" }).handler(async () => {
+  if (!(await isAdminUnlocked())) throw new Error("Admin panel is locked");
+  const { fetchCounting } = await import("./admin.server");
+  return fetchCounting();
+});
+
+export const saveCountingMode = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ mode: z.enum(["open", "locked"]) }).parse(input))
+  .handler(async ({ data }) => {
+    if (!(await isAdminUnlocked())) throw new Error("Admin panel is locked");
+    const { setCountingMode } = await import("./admin.server");
+    return setCountingMode(data.mode);
+  });
