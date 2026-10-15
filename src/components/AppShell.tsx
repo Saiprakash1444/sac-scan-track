@@ -4,6 +4,7 @@ import {
   ClipboardList,
   Home,
   Hourglass,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Search,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { NotificationBell } from "@/components/NotificationBell";
 import { supabase } from "@/integrations/supabase/client";
 import { meQuery } from "@/lib/queries";
@@ -95,8 +97,21 @@ export function AppShell({
               {me.data?.isAdmin ? <span className="block text-primary">Admin</span> : null}
             </span>
             {gated ? null : <NotificationBell />}
+            {me.data?.profile?.email ? (
+              <ChangePasswordDialog
+                email={me.data.profile.email}
+                trigger={
+                  <button
+                    aria-label="Change password"
+                    title="Change password"
+                    className="rounded-lg border border-border p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  >
+                    <KeyRound className="size-4" />
+                  </button>
+                }
+              />
+            ) : null}
             <button
-
               onClick={signOut}
               aria-label="Sign out"
               className="rounded-lg border border-border p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
