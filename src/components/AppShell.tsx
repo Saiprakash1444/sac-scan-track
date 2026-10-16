@@ -19,7 +19,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { meQuery } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
-
 type NavTo = "/home" | "/find" | "/requests" | "/my-items" | "/dashboard";
 const NAV: { to: NavTo; label: string; icon: typeof Home; adminOnly?: boolean }[] = [
   { to: "/home", label: "Home", icon: Home },
@@ -133,18 +132,15 @@ export function AppShell({
               )}
             </span>
             <h1 className="font-display text-xl font-bold">
-              {status === "rejected" ? "Access turned off" : "Account not active yet"}
+              {status === "rejected" ? "Access turned off" : "Waiting for admin approval"}
             </h1>
             <p className="text-sm text-muted-foreground">
               {status === "rejected"
                 ? "Your access to RMI Inventory has been turned off. Speak to a club coordinator if you think this is a mistake."
-                : "Your account exists but hasn't been activated yet. Ask a club coordinator to approve it in the admin panel, then tap Check again."}
+                : "Your request has reached the admins. You can look around once it's approved — nudge a club coordinator if it's urgent, then tap Check again."}
             </p>
             <p className="mono-tag text-muted-foreground">{me.data?.profile?.email ?? ""}</p>
-            <button
-              onClick={() => me.refetch()}
-              className="text-xs text-primary underline"
-            >
+            <button onClick={() => me.refetch()} className="text-xs text-primary underline">
               Check again
             </button>
           </div>
@@ -161,7 +157,6 @@ export function AppShell({
           <div className="mt-5">{children}</div>
         </main>
       )}
-
 
       <nav
         className={cn(

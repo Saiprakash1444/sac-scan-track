@@ -24,6 +24,7 @@ import {
   adminResolveDamage,
   adminReturnLoan,
   adminSendReminders,
+  getAdminMembers,
   getAdminOverview,
   lockAdmin,
   unlockAdmin,
@@ -147,6 +148,7 @@ function AdminPage() {
   const doReturn = useServerFn(adminReturnLoan);
   const doRemind = useServerFn(adminSendReminders);
   const doResolve = useServerFn(adminResolveDamage);
+  const fetchMembers = useServerFn(getAdminMembers);
   const queryClient = useQueryClient();
 
   const overview = useQuery({
@@ -154,6 +156,15 @@ function AdminPage() {
     queryFn: () => fetchOverview({}),
     refetchInterval: 60_000,
   });
+
+  // Same key as MembersPanel, so approving there updates this badge too.
+  const members = useQuery({
+    queryKey: ["admin-members"],
+    queryFn: () => fetchMembers(),
+    refetchInterval: 60_000,
+    enabled: overview.data?.locked === false,
+  });
+  const pendingMembers = (members.data ?? []).filter((m) => m.approval_status === "pending").length;
 
   const lock = useMutation({
     mutationFn: () => doLock({}),
@@ -249,7 +260,14 @@ function AdminPage() {
       <Tabs defaultValue="loans" className="mt-8">
         <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="loans">Loans</TabsTrigger>
-          <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="members">
+            Members
+            {pendingMembers > 0 ? (
+              <span className="ml-1.5 rounded-full bg-warning px-1.5 text-[10px] font-bold text-background">
+                {pendingMembers}
+              </span>
+            ) : null}
+          </TabsTrigger>
           <TabsTrigger value="catalogue">Catalogue</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="downloads">Downloads</TabsTrigger>

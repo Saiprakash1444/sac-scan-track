@@ -339,7 +339,8 @@ export type NewMemberInput = {
 };
 
 /**
- * Creates a member account outright — there is no public sign-up. Returns the
+ * Creates a member account outright (members can also request one from the
+ * sign-in page — see requestAccount). Returns the
  * generated password once; it is never stored in readable form, so an admin who
  * loses it has to issue a new one rather than look the old one up.
  */
@@ -388,6 +389,60 @@ export async function createMember(input: NewMemberInput) {
   if (profileError) throw new Error(profileError.message);
 
   return { userId, password };
+}
+
+/** Most open requests we'll hold at once — stops a script flooding the queue. */
+const MAX_PENDING_REQUESTS = 30;
+
+/**
+ * Public "request an account" from the sign-in page. The member picks their own
+ * password; the account starts `pending` and can't borrow until an admin
+ * approves it. Created server-side with email_confirm so no confirmation mail
+ * is needed (free-tier SMTP is too rate limited to rely on).
+ */
+export async function requestAccount(input: NewMemberInput & { password: string }) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { count } = await supabaseAdmin
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("approval_status", "pending");
+  if ((count ?? 0) >= MAX_PENDING_REQUESTS) {
+    throw new Error("Too many requests are waiting right now — ask a club coordinator to add you.");
+  }
+
+  const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    email: input.email,
+    password: input.password,
+    email_confirm: true,
+    user_metadata: { full_name: input.fullName },
+  });
+  if (error) {
+    if (/already|exists|registered/i.test(error.message)) {
+      throw new Error("That email already has an account — sign in, or ask an admin to reset it.");
+    }
+    throw new Error(error.message);
+  }
+
+  const userId = data.user?.id;
+  if (!userId) throw new Error("Supabase accepted the request but returned no user");
+
+  const { error: profileError } = await supabaseAdmin.from("profiles").upsert(
+    {
+      id: userId,
+      full_name: input.fullName,
+      email: input.email,
+      roll_number: input.rollNumber,
+      phone: input.phone,
+      approval_status: "pending",
+      approved_at: null,
+      approved_by: null,
+    } as never,
+    { onConflict: "id" },
+  );
+  if (profileError) throw new Error(profileError.message);
+
+  return { ok: true as const };
 }
 
 /** Issues a fresh password for an existing member who has lost theirs. */

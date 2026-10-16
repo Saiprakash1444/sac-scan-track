@@ -248,8 +248,8 @@ export function MembersPanel() {
   if (members.isLoading) return <Skeleton className="h-48 w-full" />;
 
   const rows = members.data ?? [];
-  // Self-signup is gone, so `pending` only ever holds accounts created before the
-  // switch. The section stays so those are not stranded.
+  // `pending` = requests from "Request an account" on the sign-in page. They can
+  // sign in but see a waiting screen and can't borrow until approved here.
   const pending = rows.filter((m) => m.approval_status === "pending");
   const rest = rows.filter((m) => m.approval_status !== "pending");
   const needle = filter.trim().toLowerCase();
@@ -352,35 +352,43 @@ export function MembersPanel() {
           </h2>
           <ul className="space-y-2">
             {pending.map((m) => (
-              <li key={m.id} className="panel flex flex-wrap items-center gap-3 p-3">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{m.full_name || "Unnamed"}</span>
-                  <span className="text-sm text-muted-foreground">{m.email ?? "—"}</span>
-                  <span className="mono-tag mt-0.5 block text-muted-foreground">
-                    {m.roll_number ? `${m.roll_number} · ` : ""}requested {formatDate(m.created_at)}
-                  </span>
-                </span>
-                <Button
-                  size="sm"
-                  onClick={() => mutate.mutate({ userId: m.id, status: "approved" })}
-                  disabled={mutate.isPending}
-                >
-                  {mutate.isPending ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <UserCheck className="size-4" />
-                  )}
-                  Approve
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => mutate.mutate({ userId: m.id, status: "rejected" })}
-                  disabled={mutate.isPending}
-                >
-                  <UserX className="size-4" />
-                  Decline
-                </Button>
+              <li
+                key={m.id}
+                className="panel flex flex-col gap-3 border-warning/40 p-3 sm:flex-row sm:items-center"
+              >
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="truncate font-medium">{m.full_name || "Unnamed"}</p>
+                  <p className="break-all text-sm text-muted-foreground">{m.email ?? "—"}</p>
+                  <p className="mono-tag text-muted-foreground">
+                    {[m.roll_number, m.phone, `requested ${formatDate(m.created_at)}`]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
+                  <Button
+                    size="sm"
+                    onClick={() => mutate.mutate({ userId: m.id, status: "approved" })}
+                    disabled={mutate.isPending}
+                  >
+                    {mutate.isPending && mutate.variables?.userId === m.id ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <UserCheck className="size-4" />
+                    )}
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => mutate.mutate({ userId: m.id, status: "rejected" })}
+                    disabled={mutate.isPending}
+                  >
+                    <UserX className="size-4" />
+                    Decline
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
