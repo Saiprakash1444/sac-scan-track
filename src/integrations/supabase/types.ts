@@ -231,6 +231,47 @@ export type Database = {
           },
         ]
       }
+      damage_reports: {
+        Row: {
+          component_id: string
+          created_at: string
+          id: string
+          note: string
+          quantity: number
+          reported_by: string
+          resolved_at: string | null
+          status: string
+        }
+        Insert: {
+          component_id: string
+          created_at?: string
+          id?: string
+          note: string
+          quantity?: number
+          reported_by: string
+          resolved_at?: string | null
+          status?: string
+        }
+        Update: {
+          component_id?: string
+          created_at?: string
+          id?: string
+          note?: string
+          quantity?: number
+          reported_by?: string
+          resolved_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "damage_reports_component_id_fkey"
+            columns: ["component_id"]
+            isOneToOne: false
+            referencedRelation: "components"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string | null
@@ -463,6 +504,10 @@ export type Database = {
         Returns: string
       }
       generate_return_reminders: { Args: never; Returns: number }
+      resolve_damage_report: {
+        Args: { _report_id: string; _write_off: boolean }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

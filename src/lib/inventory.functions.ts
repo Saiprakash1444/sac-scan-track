@@ -55,7 +55,6 @@ export type NotificationRow = {
   read_at: string | null;
 };
 
-
 const uuid = z.string().uuid();
 
 /** Whole catalogue: racks + components. Small enough to ship in one payload. */
@@ -99,10 +98,7 @@ export const getMe = createServerFn({ method: "GET" })
 
     const status =
       ((profileRes.data as { approval_status?: string } | null)?.approval_status as
-        | "pending"
-        | "approved"
-        | "rejected"
-        | undefined) ?? "pending";
+        "pending" | "approved" | "rejected" | undefined) ?? "pending";
 
     return {
       userId: context.userId,
@@ -310,7 +306,6 @@ export const getBorrowLog = createServerFn({ method: "GET" })
     }));
   });
 
-
 export const lookupByCode = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -488,4 +483,33 @@ export const updateComponentCount = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     return result as { available: number; total: number; out: number };
+  });
+
+/* --------------------------------------------------------- damage reports */
+
+/** Flag a part on the shelf as broken. Stock only changes once an admin writes it off. */
+export const reportDamage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        componentId: uuid,
+        quantity: z.number().int().min(1).max(100000),
+        note: z.string().trim().min(1).max(300),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("damage_reports").insert({
+      component_id: data.componentId,
+      reported_by: context.userId,
+      quantity: data.quantity,
+      note: data.note,
+    });
+    if (error) {
+      if (error.code === "42P01")
+        throw new Error("Damage reports aren't set up yet — ask an admin");
+      throw new Error(error.message);
+    }
+    return { ok: true };
   });

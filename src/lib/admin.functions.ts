@@ -13,7 +13,13 @@ import {
   type AdminSession,
 } from "./admin.server";
 
-export type { AdminLoan, AdminOverview, AdminMember, ComponentInput } from "./admin.server";
+export type {
+  AdminDamageReport,
+  AdminLoan,
+  AdminOverview,
+  AdminMember,
+  ComponentInput,
+} from "./admin.server";
 
 export const unlockAdmin = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
@@ -56,6 +62,16 @@ export const adminReturnLoan = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     if (!(await isAdminUnlocked())) throw new Error("Admin panel is locked");
     return adminForceReturn(data.recordId, data.damaged, data.damageNote ?? null);
+  });
+
+export const adminResolveDamage = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), writeOff: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    if (!(await isAdminUnlocked())) throw new Error("Admin panel is locked");
+    const { resolveDamageReport } = await import("./admin.server");
+    return resolveDamageReport(data.id, data.writeOff);
   });
 
 export const adminSendReminders = createServerFn({ method: "POST" }).handler(async () => {
@@ -184,7 +200,12 @@ export const removeRack = createServerFn({ method: "POST" })
 export const addComponents = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
-      .object({ rows: z.array(componentSchema.omit({ id: true })).min(1).max(300) })
+      .object({
+        rows: z
+          .array(componentSchema.omit({ id: true }))
+          .min(1)
+          .max(300),
+      })
       .parse(input),
   )
   .handler(async ({ data }) => {

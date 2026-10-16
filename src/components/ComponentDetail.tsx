@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { binText, sectionTitle } from "@/lib/queries";
+import { ReportDamageDialog } from "@/components/ReportDamageDialog";
 
 export function StockBadge({ component }: { component: Component }) {
   const { quantity_available: avail, quantity_total: total } = component;
@@ -197,6 +198,8 @@ export function ComponentDetail({
           This is a shared bin box — take what you need inside the room, no checkout needed.
         </p>
       )}
+
+      <ReportDamageDialog component={component} />
     </div>
   );
 }

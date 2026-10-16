@@ -41,9 +41,28 @@ export type AdminLoan = {
   project_name: string | null;
 };
 
+/** A part a member found broken on the shelf (not a borrowed one). */
+export type AdminDamageReport = {
+  id: string;
+  component_name: string;
+  rack_code: string | null;
+  bin_label: string | null;
+  member_name: string;
+  quantity: number;
+  note: string;
+  created_at: string;
+};
+
 export type AdminOverview = {
   loans: AdminLoan[];
-  lowStock: { id: string; name: string; rack_code: string | null; available: number; total: number }[];
+  damageReports: AdminDamageReport[];
+  lowStock: {
+    id: string;
+    name: string;
+    rack_code: string | null;
+    available: number;
+    total: number;
+  }[];
   generatedAt: string;
 };
 
@@ -65,7 +84,7 @@ type RawRow = {
 export async function fetchAdminOverview(): Promise<AdminOverview> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  const [loansRes, componentsRes, profilesRes] = await Promise.all([
+  const [loansRes, componentsRes, profilesRes, reportsRes] = await Promise.all([
     supabaseAdmin
       .from("borrow_records")
       .select(
@@ -78,13 +97,24 @@ export async function fetchAdminOverview(): Promise<AdminOverview> {
       .select("id, name, quantity_available, quantity_total, borrowable, racks(code)")
       .order("name"),
     supabaseAdmin.from("profiles").select("id, full_name, email"),
+    supabaseAdmin
+      .from("damage_reports")
+      .select(
+        "id, reported_by, quantity, note, created_at, components(name, bin_label, racks(code))",
+      )
+      .eq("status", "open")
+      .order("created_at", { ascending: false })
+      .limit(200),
   ]);
 
   if (loansRes.error) throw new Error(loansRes.error.message);
   if (componentsRes.error) throw new Error(componentsRes.error.message);
 
   const profiles = new Map(
-    (profilesRes.data ?? []).map((p) => [p.id, { name: p.full_name || p.email || "Member", email: p.email }]),
+    (profilesRes.data ?? []).map((p) => [
+      p.id,
+      { name: p.full_name || p.email || "Member", email: p.email },
+    ]),
   );
 
   const loans = ((loansRes.data ?? []) as unknown as RawRow[]).map<AdminLoan>((r) => ({
@@ -119,7 +149,59 @@ export async function fetchAdminOverview(): Promise<AdminOverview> {
       total: c.quantity_total,
     }));
 
-  return { loans, lowStock, generatedAt: new Date().toISOString() };
+  // Tolerate the table not existing yet so the panel still loads before the
+  // damage-reports migration has been run.
+  type RawReport = {
+    id: string;
+    reported_by: string;
+    quantity: number;
+    note: string;
+    created_at: string;
+    components: { name: string; bin_label: string | null; racks: { code: string } | null } | null;
+  };
+  const damageReports = (
+    (reportsRes.error ? [] : (reportsRes.data ?? [])) as unknown as RawReport[]
+  ).map<AdminDamageReport>((r) => ({
+    id: r.id,
+    component_name: r.components?.name ?? "Unknown component",
+    rack_code: r.components?.racks?.code ?? null,
+    bin_label: r.components?.bin_label ?? null,
+    member_name: profiles.get(r.reported_by)?.name ?? "Member",
+    quantity: r.quantity,
+    note: r.note,
+    created_at: r.created_at,
+  }));
+
+  return { loans, damageReports, lowStock, generatedAt: new Date().toISOString() };
+}
+
+export async function resolveDamageReport(id: string, writeOff: boolean) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.rpc("resolve_damage_report", {
+    _report_id: id,
+    _write_off: writeOff,
+  });
+  if (error) throw new Error(error.message);
+  const removed = (data as { removed: number } | null)?.removed ?? 0;
+
+  const { data: report } = await supabaseAdmin
+    .from("damage_reports")
+    .select("reported_by, components(name)")
+    .eq("id", id)
+    .maybeSingle();
+  if (report) {
+    const name =
+      (report as unknown as { components: { name: string } | null }).components?.name ?? "the part";
+    await supabaseAdmin.from("notifications").insert({
+      user_id: report.reported_by,
+      kind: writeOff ? "damage_written_off" : "damage_dismissed",
+      title: writeOff ? `Damaged ${name} removed from stock` : `Damage report checked: ${name}`,
+      body: writeOff
+        ? `Thanks for flagging it — ${removed} taken out of stock.`
+        : "An admin checked it and found it working, so it stays in stock.",
+    });
+  }
+  return { removed };
 }
 
 export async function adminForceReturn(recordId: string, damaged: boolean, note: string | null) {
@@ -478,7 +560,9 @@ export async function fetchAdditions() {
     supabaseAdmin.from("app_settings").select("value").eq("key", "member_additions").maybeSingle(),
     supabaseAdmin
       .from("component_submissions")
-      .select("id, name, category, specs, quantity, rack_id, bin_label, note, status, created_at, submitted_by")
+      .select(
+        "id, name, category, specs, quantity, rack_id, bin_label, note, status, created_at, submitted_by",
+      )
       .eq("status", "pending")
       .order("created_at")
       .limit(200),
@@ -592,7 +676,10 @@ async function memberNames(ids: string[]) {
   const names = new Map<string, string>();
   const unique = Array.from(new Set(ids));
   if (unique.length === 0) return names;
-  const { data } = await supabaseAdmin.from("profiles").select("id, full_name, email").in("id", unique);
+  const { data } = await supabaseAdmin
+    .from("profiles")
+    .select("id, full_name, email")
+    .in("id", unique);
   for (const p of data ?? []) names.set(p.id, p.full_name || p.email || "Member");
   return names;
 }
@@ -601,7 +688,9 @@ export async function fetchPartRequests(): Promise<AdminPartRequest[]> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("part_requests")
-    .select("id, name, quantity, reason, link, est_price, status, admin_note, created_at, reviewed_at, requested_by")
+    .select(
+      "id, name, quantity, reason, link, est_price, status, admin_note, created_at, reviewed_at, requested_by",
+    )
     .order("created_at", { ascending: false })
     .limit(500);
   if (error) throw new Error(error.message);
@@ -694,7 +783,9 @@ export async function fetchExportRows(kind: "inventory" | "requests" | "loans") 
 
   const { data, error } = await supabaseAdmin
     .from("borrow_records")
-    .select("quantity, borrowed_at, due_at, returned_at, purpose, project_name, damage_reported, user_id, components(name, racks(code))")
+    .select(
+      "quantity, borrowed_at, due_at, returned_at, purpose, project_name, damage_reported, user_id, components(name, racks(code))",
+    )
     .order("borrowed_at", { ascending: false })
     .limit(5000);
   if (error) throw new Error(error.message);

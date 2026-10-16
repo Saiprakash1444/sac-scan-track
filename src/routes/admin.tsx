@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReturnDialog } from "@/components/ReturnDialog";
 import {
+  adminResolveDamage,
   adminReturnLoan,
   adminSendReminders,
   getAdminOverview,
@@ -102,7 +103,11 @@ function UnlockCard() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={mutation.isPending || !password}>
-            {mutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <LockOpen className="size-4" />}
+            {mutation.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <LockOpen className="size-4" />
+            )}
             Unlock panel
           </Button>
         </form>
@@ -114,7 +119,17 @@ function UnlockCard() {
   );
 }
 
-function Stat({ label, value, icon: Icon, tone }: { label: string; value: number; icon: typeof Boxes; tone?: "warn" }) {
+function Stat({
+  label,
+  value,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: number;
+  icon: typeof Boxes;
+  tone?: "warn";
+}) {
   return (
     <div className="panel p-4">
       <div className="flex items-center gap-2 text-muted-foreground">
@@ -131,6 +146,7 @@ function AdminPage() {
   const doLock = useServerFn(lockAdmin);
   const doReturn = useServerFn(adminReturnLoan);
   const doRemind = useServerFn(adminSendReminders);
+  const doResolve = useServerFn(adminResolveDamage);
   const queryClient = useQueryClient();
 
   const overview = useQuery({
@@ -149,6 +165,19 @@ function AdminPage() {
       doReturn({ data: input }),
     onSuccess: () => {
       toast.success("Logged as returned");
+      queryClient.invalidateQueries({ queryKey: overviewKey });
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Failed"),
+  });
+
+  const resolve = useMutation({
+    mutationFn: (input: { id: string; writeOff: boolean }) => doResolve({ data: input }),
+    onSuccess: (res, input) => {
+      toast.success(
+        input.writeOff
+          ? `${res.removed} written off from stock`
+          : "Report dismissed — stock unchanged",
+      );
       queryClient.invalidateQueries({ queryKey: overviewKey });
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Failed"),
@@ -182,6 +211,7 @@ function AdminPage() {
   const open = data.loans.filter((l) => !l.returned_at);
   const overdue = open.filter((l) => daysUntil(l.due_at) < 0);
   const damaged = data.loans.filter((l) => l.damage_reported);
+  const shelfReports = data.damageReports ?? [];
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-16 pt-6">
@@ -193,11 +223,7 @@ function AdminPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => remind.mutate()}
-            disabled={remind.isPending}
-          >
+          <Button variant="outline" onClick={() => remind.mutate()} disabled={remind.isPending}>
             <BellRing className="size-4" />
             Send reminders now
           </Button>
@@ -211,7 +237,12 @@ function AdminPage() {
       <div className="mt-6 grid grid-cols-2 gap-2 lg:grid-cols-4">
         <Stat label="Out now" value={open.length} icon={Boxes} />
         <Stat label="Overdue" value={overdue.length} icon={AlertTriangle} tone="warn" />
-        <Stat label="Damage reports" value={damaged.length} icon={Wrench} tone="warn" />
+        <Stat
+          label="Damage reports"
+          value={damaged.length + shelfReports.length}
+          icon={Wrench}
+          tone="warn"
+        />
         <Stat label="Running low" value={data.lowStock.length} icon={Boxes} />
       </div>
 
@@ -241,127 +272,176 @@ function AdminPage() {
         </TabsContent>
 
         <TabsContent value="loans">
-      <section className="mt-8 space-y-2">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Currently checked out ({open.length})
-        </h2>
-        {open.length === 0 ? (
-          <p className="panel p-4 text-sm text-muted-foreground">
-            Everything is on the racks right now.
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {open.map((l) => {
-              const left = daysUntil(l.due_at);
-              const label = `${l.quantity} × ${l.component_name}`;
-              return (
-                <li key={l.id} className="panel flex flex-wrap items-center gap-3 p-3">
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{label}</span>
-                    <span className="text-sm text-muted-foreground">
-                      {l.member_name}
-                      {l.member_email ? ` · ${l.member_email}` : ""} · taken{" "}
-                      {formatDate(l.borrowed_at)} · {purposeLabel(l)}
-                    </span>
-                    <span className="mono-tag mt-0.5 block text-muted-foreground">
-                      {l.rack_code ?? "—"}
-                      {l.bin_label ? ` · bin ${l.bin_label}` : ""}
-                      {l.extended_count > 0 ? ` · extended ${l.extended_count}×` : ""}
-                    </span>
-                  </span>
-                  <Badge variant={left < 0 ? "destructive" : left <= 1 ? "outline" : "secondary"}>
-                    {left < 0 ? `${Math.abs(left)}d late` : `due ${formatDate(l.due_at)}`}
-                  </Badge>
-                  <ReturnDialog
-                    itemLabel={label}
-                    pending={returnLoan.isPending}
-                    onConfirm={({ damaged: isDamaged, damageNote }) =>
-                      returnLoan.mutateAsync({
-                        recordId: l.id,
-                        damaged: isDamaged,
-                        damageNote,
-                      })
-                    }
-                    trigger={
-                      <Button size="sm" variant="secondary">
-                        Log return
+          <section className="mt-8 space-y-2">
+            <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Currently checked out ({open.length})
+            </h2>
+            {open.length === 0 ? (
+              <p className="panel p-4 text-sm text-muted-foreground">
+                Everything is on the racks right now.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {open.map((l) => {
+                  const left = daysUntil(l.due_at);
+                  const label = `${l.quantity} × ${l.component_name}`;
+                  return (
+                    <li key={l.id} className="panel flex flex-wrap items-center gap-3 p-3">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{label}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {l.member_name}
+                          {l.member_email ? ` · ${l.member_email}` : ""} · taken{" "}
+                          {formatDate(l.borrowed_at)} · {purposeLabel(l)}
+                        </span>
+                        <span className="mono-tag mt-0.5 block text-muted-foreground">
+                          {l.rack_code ?? "—"}
+                          {l.bin_label ? ` · bin ${l.bin_label}` : ""}
+                          {l.extended_count > 0 ? ` · extended ${l.extended_count}×` : ""}
+                        </span>
+                      </span>
+                      <Badge
+                        variant={left < 0 ? "destructive" : left <= 1 ? "outline" : "secondary"}
+                      >
+                        {left < 0 ? `${Math.abs(left)}d late` : `due ${formatDate(l.due_at)}`}
+                      </Badge>
+                      <ReturnDialog
+                        itemLabel={label}
+                        pending={returnLoan.isPending}
+                        onConfirm={({ damaged: isDamaged, damageNote }) =>
+                          returnLoan.mutateAsync({
+                            recordId: l.id,
+                            damaged: isDamaged,
+                            damageNote,
+                          })
+                        }
+                        trigger={
+                          <Button size="sm" variant="secondary">
+                            Log return
+                          </Button>
+                        }
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          <section className="mt-8 space-y-2">
+            <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-destructive">
+              Damage reports ({damaged.length + shelfReports.length})
+            </h2>
+            {shelfReports.length > 0 ? (
+              <ul className="space-y-2">
+                {shelfReports.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex flex-col gap-3 rounded-xl border border-destructive/50 bg-destructive/10 p-4 sm:flex-row sm:items-center"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">
+                        {r.quantity} × {r.component_name}{" "}
+                        <Badge variant="outline" className="ml-1 align-middle text-warning">
+                          Needs a decision
+                        </Badge>
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Found on the shelf by {r.member_name} · {formatDate(r.created_at)} ·{" "}
+                        {r.rack_code ?? "—"}
+                        {r.bin_label ? ` · bin ${r.bin_label}` : ""}
+                      </p>
+                      <p className="mt-2 text-sm">{r.note}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={resolve.isPending}
+                        onClick={() => resolve.mutate({ id: r.id, writeOff: true })}
+                      >
+                        Write off
                       </Button>
-                    }
-                  />
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={resolve.isPending}
+                        onClick={() => resolve.mutate({ id: r.id, writeOff: false })}
+                      >
+                        It works — dismiss
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {damaged.length === 0 && shelfReports.length === 0 ? (
+              <p className="panel p-4 text-sm text-muted-foreground">No damaged parts reported.</p>
+            ) : (
+              <ul className="space-y-2">
+                {damaged.map((l) => (
+                  <li
+                    key={l.id}
+                    className="rounded-xl border border-destructive/50 bg-destructive/10 p-4"
+                  >
+                    <p className="font-medium">
+                      {l.quantity} × {l.component_name}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Reported by {l.member_name} ·{" "}
+                      {l.returned_at ? formatDate(l.returned_at) : "—"}
+                    </p>
+                    {l.damage_note ? <p className="mt-2 text-sm">{l.damage_note}</p> : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
-      <section className="mt-8 space-y-2">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-destructive">
-          Damage reports ({damaged.length})
-        </h2>
-        {damaged.length === 0 ? (
-          <p className="panel p-4 text-sm text-muted-foreground">No damaged parts reported.</p>
-        ) : (
-          <ul className="space-y-2">
-            {damaged.map((l) => (
-              <li key={l.id} className="rounded-xl border border-destructive/50 bg-destructive/10 p-4">
-                <p className="font-medium">
-                  {l.quantity} × {l.component_name}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Reported by {l.member_name} · {l.returned_at ? formatDate(l.returned_at) : "—"}
-                </p>
-                {l.damage_note ? <p className="mt-2 text-sm">{l.damage_note}</p> : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+          <section className="mt-8 space-y-2">
+            <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Running low
+            </h2>
+            {data.lowStock.length === 0 ? (
+              <p className="panel p-4 text-sm text-muted-foreground">Stock levels look healthy.</p>
+            ) : (
+              <ul className="space-y-2">
+                {data.lowStock.map((c) => (
+                  <li key={c.id} className="panel flex items-center gap-3 p-3">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{c.name}</span>
+                      <span className="mono-tag text-muted-foreground">{c.rack_code ?? "—"}</span>
+                    </span>
+                    <Badge variant="outline" className="text-warning">
+                      {c.available}/{c.total} left
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
-      <section className="mt-8 space-y-2">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Running low
-        </h2>
-        {data.lowStock.length === 0 ? (
-          <p className="panel p-4 text-sm text-muted-foreground">Stock levels look healthy.</p>
-        ) : (
-          <ul className="space-y-2">
-            {data.lowStock.map((c) => (
-              <li key={c.id} className="panel flex items-center gap-3 p-3">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{c.name}</span>
-                  <span className="mono-tag text-muted-foreground">{c.rack_code ?? "—"}</span>
-                </span>
-                <Badge variant="outline" className="text-warning">
-                  {c.available}/{c.total} left
-                </Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="mt-8 space-y-2">
-        <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Recent returns
-        </h2>
-        <ul className="space-y-2">
-          {data.loans
-            .filter((l) => l.returned_at)
-            .slice(0, 15)
-            .map((l) => (
-              <li key={l.id} className="panel flex items-center gap-3 p-3 text-sm">
-                <span className="min-w-0 flex-1 truncate">
-                  {l.quantity} × {l.component_name} — {l.member_name}
-                </span>
-                {l.damage_reported ? <Badge variant="destructive">Damaged</Badge> : null}
-                <span className="text-xs text-muted-foreground">
-                  {formatDate(l.returned_at!)}
-                </span>
-              </li>
-            ))}
-        </ul>
-      </section>
+          <section className="mt-8 space-y-2">
+            <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Recent returns
+            </h2>
+            <ul className="space-y-2">
+              {data.loans
+                .filter((l) => l.returned_at)
+                .slice(0, 15)
+                .map((l) => (
+                  <li key={l.id} className="panel flex items-center gap-3 p-3 text-sm">
+                    <span className="min-w-0 flex-1 truncate">
+                      {l.quantity} × {l.component_name} — {l.member_name}
+                    </span>
+                    {l.damage_reported ? <Badge variant="destructive">Damaged</Badge> : null}
+                    <span className="text-xs text-muted-foreground">
+                      {formatDate(l.returned_at!)}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          </section>
         </TabsContent>
       </Tabs>
     </main>
