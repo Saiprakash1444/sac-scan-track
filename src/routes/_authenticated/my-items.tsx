@@ -6,10 +6,10 @@ import { toast } from "sonner";
 import { AlertTriangle, CalendarPlus, CheckCircle2, PackageOpen } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { NumberInput } from "@/components/NumberInput";
 import { ReturnDialog } from "@/components/ReturnDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -93,14 +93,7 @@ function ExtendDialog({
         </DialogHeader>
         <div className="space-y-1.5">
           <Label htmlFor="extend-days">Extra days</Label>
-          <Input
-            id="extend-days"
-            type="number"
-            min={1}
-            max={30}
-            value={days}
-            onChange={(e) => setDays(Math.min(30, Math.max(1, +e.target.value || 1)))}
-          />
+          <NumberInput id="extend-days" min={1} max={30} value={days} onValueChange={setDays} />
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>

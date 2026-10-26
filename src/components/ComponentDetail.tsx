@@ -8,6 +8,7 @@ import { borrowComponent, type Component, type Rack } from "@/lib/inventory.func
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NumberInput } from "@/components/NumberInput";
 import { Badge } from "@/components/ui/badge";
 import { binText, sectionTitle } from "@/lib/queries";
 import { ReportDamageDialog } from "@/components/ReportDamageDialog";
@@ -124,26 +125,18 @@ export function ComponentDetail({
             {isMech ? null : (
               <div className="flex-1 space-y-1.5">
                 <Label htmlFor="qty">Quantity</Label>
-                <Input
+                <NumberInput
                   id="qty"
-                  type="number"
                   min={1}
                   max={maxQty}
                   value={quantity}
-                  onChange={(e) => setQuantity(Math.min(maxQty, Math.max(1, +e.target.value || 1)))}
+                  onValueChange={setQuantity}
                 />
               </div>
             )}
             <div className="flex-1 space-y-1.5">
               <Label htmlFor="days">Return in (days)</Label>
-              <Input
-                id="days"
-                type="number"
-                min={1}
-                max={90}
-                value={days}
-                onChange={(e) => setDays(Math.min(90, Math.max(1, +e.target.value || 1)))}
-              />
+              <NumberInput id="days" min={1} max={90} value={days} onValueChange={setDays} />
             </div>
           </div>
           <div className="space-y-1.5">
