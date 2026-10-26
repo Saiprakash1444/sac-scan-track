@@ -1,0 +1,71 @@
+name: test
+
+# Never needs production credentials. The database suite runs only when the
+# repository has secrets for a separate TEST Supabase project; its own guard
+# still refuses a production URL or a database without the test sentinel row.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-results
+          path: test-results/
+
+  smoke:
+    # Read-only checks against the live site: public pages, redirects, manifest,
+    # bundle secret scan, cron auth. No sign-in, no writes.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:smoke
+        env:
+          SMOKE_BASE_URL: https://sac-scan-track.vercel.app
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-results
+          path: test-results/
+
+  database:
+    runs-on: ubuntu-latest
+    if: ${{ vars.HAS_TEST_DB == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:db
+        env:
+          TEST_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          TEST_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
+          TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
+          SAC_TEST_DB_CONFIRM: isolated-test-project
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: db-results
+          path: test-results/

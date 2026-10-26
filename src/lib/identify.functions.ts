@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
+import { parseIdentifyReply } from "./identify-reply";
+
 export type IdentifyResult = {
   /** Set only when the part exists in the club catalogue. */
   componentId: string | null;
@@ -74,44 +76,7 @@ export const identifyComponent = createServerFn({ method: "POST" })
       },
     ]);
 
-    let parsed: Record<string, unknown> = {};
-    try {
-      parsed = JSON.parse(content);
-    } catch {
-      const match = content.match(/\{[\s\S]*\}/);
-      if (match) {
-        try {
-          parsed = JSON.parse(match[0]);
-        } catch {
-          parsed = {};
-        }
-      }
-    }
-
-    const str = (value: unknown, fallback = "") =>
-      typeof value === "string" ? value : fallback;
-
-    const known = new Set((rows ?? []).map((c) => c.id));
-    const rawId = str(parsed.id);
-    const componentId = rawId && known.has(rawId) ? rawId : null;
-    const confidence =
-      parsed.confidence === "high" || parsed.confidence === "medium"
-        ? (parsed.confidence as "high" | "medium")
-        : "low";
-    const label = str(parsed.label, "Unrecognised part").slice(0, 90);
-
-    return {
-      componentId,
-      label,
-      category: str(parsed.category, "component").slice(0, 40),
-      description: str(parsed.description).slice(0, 220),
-      specs: Array.isArray(parsed.specs)
-        ? parsed.specs.filter((s): s is string => typeof s === "string").slice(0, 4)
-        : [],
-      confidence,
-      reason: str(parsed.reason).slice(0, 140),
-      searchQuery: str(parsed.searchQuery, label).slice(0, 90),
-    };
+    return parseIdentifyReply(content, new Set((rows ?? []).map((c) => c.id)));
   });
 
 /** Queue an unrecognised part so an admin can add it to the catalogue. */

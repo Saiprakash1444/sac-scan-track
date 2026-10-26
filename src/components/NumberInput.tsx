@@ -2,7 +2,10 @@ import { useEffect, useState, type ComponentProps } from "react";
 
 import { Input } from "@/components/ui/input";
 
-type NumberInputProps = Omit<ComponentProps<"input">, "type" | "value" | "onChange" | "min" | "max"> & {
+type NumberInputProps = Omit<
+  ComponentProps<"input">,
+  "type" | "value" | "onChange" | "min" | "max"
+> & {
   value: number;
   onValueChange: (value: number) => void;
   min: number;
@@ -11,7 +14,14 @@ type NumberInputProps = Omit<ComponentProps<"input">, "type" | "value" | "onChan
 
 // Keeps the typed text separately so the field can be cleared while editing;
 // the committed value is clamped to [min, max] and restored on blur.
-export function NumberInput({ value, onValueChange, min, max, onBlur, ...props }: NumberInputProps) {
+export function NumberInput({
+  value,
+  onValueChange,
+  min,
+  max,
+  onBlur,
+  ...props
+}: NumberInputProps) {
   const [text, setText] = useState(String(value));
 
   useEffect(() => {
